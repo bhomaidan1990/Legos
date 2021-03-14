@@ -1,0 +1,35 @@
+(define (problem p01)
+(:domain Legos)
+
+(:objects 
+g g2 - Gripper
+x y z - Block
+point_air pos pos_upper pos_lower - Location
+)
+
+(:htn
+    :ordered-subtasks
+    (and
+        (t1 (pick g x pos))
+        (t2 (pick g2 y pos))
+    )
+)
+
+(:init
+    (at g point_air)
+    ; (not (at g pos))
+    (unloaded g)
+    (is_open g)
+    (single x)
+    (color_blue x)
+    (belong x pos)
+    ; (not (empty_location pos))
+    (empty_location pos_upper)
+    (empty_location pos_lower)
+    (up pos_upper pos)
+    (up pos pos_lower)
+    (down pos_lower pos)
+    (down pos pos_upper)
+)
+
+)
