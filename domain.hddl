@@ -89,20 +89,8 @@
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
-    (at ?g ?point_air)
-    (not (at ?g ?pos))
-    (unloaded ?g)
-    (is_open ?g)
     (single ?x)
     (color_blue ?x)
-    (belong ?x ?pos)
-    (not (empty_location ?pos))
-    (empty_location ?pos_upper)
-    (empty_location ?pos_lower)
-    (up ?pos_upper ?pos)
-    (up ?pos ?pos_lower)
-    (down ?pos_lower ?pos)
-    (down ?pos ?pos_upper)
   )
   :ordered-subtasks 
   (and
@@ -120,20 +108,8 @@
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
-    (at ?g ?point_air)
-    (not (at ?g ?pos))
-    (unloaded ?g)
-    (is_open ?g)
     (single ?x)
     (color_yellow ?x)
-    (belong ?x ?pos)
-    (not (empty_location ?pos))
-    (empty_location ?pos_upper)
-    (empty_location ?pos_lower)
-    (up ?pos_upper ?pos)
-    (up ?pos ?pos_lower)
-    (down ?pos_lower ?pos)
-    (down ?pos ?pos_upper)
   )
   :ordered-subtasks 
   (and
