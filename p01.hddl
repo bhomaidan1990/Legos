@@ -4,7 +4,7 @@
 (:objects 
 g g2 - Gripper
 x y z - Block
-point_air pos pos_upper pos_lower - Location
+point_air point_air2 pos pos_upper pos_lower - Location
 )
 
 (:htn
@@ -17,9 +17,12 @@ point_air pos pos_upper pos_lower - Location
 
 (:init
     (at g point_air)
+    (at g2 point_air2)
     ; (not (at g pos))
     (unloaded g)
+    (unloaded g2)
     (is_open g)
+    (is_open g2)
     (single x)
     (color_blue x)
     (belong x pos)
