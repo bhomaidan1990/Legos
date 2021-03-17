@@ -1,38 +1,41 @@
 (define (problem p01)
-(:domain Legos)
+    (:domain Legos)
 
-(:objects 
-g g2 - Gripper
-x y z - Block
-point_air point_air2 pos pos_upper pos_lower - Location
-)
-
-(:htn
-    :ordered-subtasks
-    (and
-        (t1 (pick g x pos))
-        (t2 (pick g2 y pos))
+    (:objects 
+    g g2 - Gripper
+    x y z - Block
+    point_air point_air2 - Point_Air
+    pos pos_upper pos_lower - Point_Workspace
     )
-)
 
-(:init
-    (at g point_air)
-    (at g2 point_air2)
-    ; (not (at g pos))
-    (unloaded g)
-    (unloaded g2)
-    (is_open g)
-    (is_open g2)
-    (single x)
-    (color_blue x)
-    (belong x pos)
-    ; (not (empty_location pos))
-    (empty_location pos_upper)
-    (empty_location pos_lower)
-    (up pos_upper pos)
-    (up pos pos_lower)
-    (down pos_lower pos)
-    (down pos pos_upper)
-)
+    (:htn
+        :ordered-subtasks
+        (and
+            (t1 (pick g x pos))
+            (t2 (pick g2 y pos))
+        )
+    )
+
+    (:init
+        (at g point_air)
+        (at g2 point_air2)
+        (reachable g pos)
+        (reachable g point_air)
+        (reachable g2 point_air2)
+        (reachable g2 pos)
+        (unloaded g)
+        (unloaded g2)
+        (is_open g)
+        (is_open g2)
+        (single x)
+        (color_blue x)
+        (belong x pos)
+        (empty_location pos_upper)
+        (empty_location pos_lower)
+        (up pos_upper pos)
+        (up pos pos_lower)
+        (down pos_lower pos)
+        (down pos pos_upper)
+    )
 
 )

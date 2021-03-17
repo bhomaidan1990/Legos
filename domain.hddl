@@ -27,9 +27,11 @@
 ;   Types
 ;----------------
 (:types
+  Point_Air - Location
+  Point_Workspace - Location
   Location - object 
   Block - object ; Block 2x2.
-  Gripper - agent ; holds at most 1 Lego, only 1 Gripper per Location.
+  Gripper - object ; holds at most 1 Lego, only 1 Gripper per Location.
 )
 ;-------------------------------------------------------------------------
 ;                          Predicates                                    |
@@ -43,12 +45,13 @@
   (connected ?x - Block ?y - Block); Lego x has Lego y connected to it 2x4.
   (double_connected ?x - Block ?y - Block ?z - Block) ; lego x has lego y, and lego z connected to it 2x6.
   ;; Directions
-  (left ?l1 - Location ?l2 - Location); Location l1 is to the left of l2.
-  (right ?l1 - Location ?l2 - Location); Location l1 is to the right of l2.
-  (up ?l1 - Location ?l2 - Location); Location l1 is to the upper side of l2.
-  (down ?l1 - Location ?l2 - Location); Location l1 is to the lower side of l2.
+  (left ?l1 - Point_Workspace ?l2 - Point_Workspace); Location l1 is to the left of l2.
+  (right ?l1 - Point_Workspace ?l2 - Point_Workspace); Location l1 is to the right of l2.
+  (up ?l1 - Point_Workspace ?l2 - Point_Workspace); Location l1 is to the upper side of l2.
+  (down ?l1 - Point_Workspace ?l2 - Point_Workspace); Location l1 is to the lower side of l2.
   ;; define the Location characteristics.
-  (belong ?x - Block ?l - Location); Lego x is located on Location l.
+  (belong ?x - Block ?l - Point_Workspace); Lego x is located on Location l.
+  (workspace ?l - Point_Workspace); to define if this location is part of the target workspace.
   (has_left ?x - Block ?y - Block); Lego x is to the left side of Lego y (from robot point of view y++).
   (has_right ?x - Block ?y - Block); Lego x has Lego y on the right side(from robot point of view y--).
   (has_upper ?x - Block ?y - Block); Lego x has Lego y on the upper side(from robot point of view x++).
@@ -61,30 +64,31 @@
   (unloaded ?g - Gripper); Gripper g is uloaded.
   (loaded ?x - Block ?g - Gripper); Gripper g is loaded with Lego block.
   (at ?g - Gripper ?l - Location); Gripper g is in Location l.
+  (reachable ?g - Gripper ?l - Location); to define whether if this location is reachable by this gripper.
 )
 ;-------------------------------------------------------------------------
 ;                               Tasks                                    |
 ;-------------------------------------------------------------------------
 ; 1. The task of neighboring status
 (:task neighbor
-  :parameters (?x - Block ?pos - Location)
+  :parameters (?x - Block ?pos - Point_Workspace)
 )
 ; 2. The task of neighboring status
 (:task unneighbor
-  :parameters (?x - Block ?pos - Location)
+  :parameters (?x - Block ?pos - Point_Workspace)
 )
 ; 3. The task of picking a Lego.
 (:task pick
-  :parameters (?g - Gripper ?x - Block ?pos - Location)
+  :parameters (?g - Gripper ?x - Block ?pos - Point_Workspace)
 )
 ; 4. The task of placing a Lego.
 (:task place
-  :parameters (?g - Gripper ?x - Block ?pos - Location)
+  :parameters (?g - Gripper ?x - Block ?pos - Point_Workspace ?point_top - Point_Air)
 )
 ; 5. The task of shifting stock from Robot stock to Operator stock.
-(:task shift
-  :parameters (?g_left - Gripper ?g_right - Gripper ?x - Block ?pos - Location)
-)
+; (:task shift
+;   :parameters (?g_left - Gripper ?g_right - Gripper ?x - Block ?source_pos - Point_Workspace ?dest_pos - Point_Workspace)
+; )
 ;-------------------------------------------------------------------------
 ;                        Operators(Actions)                              |
 ;-------------------------------------------------------------------------
@@ -117,7 +121,7 @@
 )
 ; 1.3 action of holding block with the Gripper
 (:action Hold_gripper
-  :parameters (?x - Block ?g - Gripper ?l - Location)
+  :parameters (?x - Block ?g - Gripper ?l - Point_Workspace)
   :precondition 
   (and 
     (is_open ?g)
@@ -157,8 +161,8 @@
     (not (is_open ?g))
     (unloaded ?g)
     (at ?g ?current_point)
+    (reachable ?g ?destination_point)
     (empty_location ?destination_point)
-    (not (= ?current_point ?destination_point))
   )
   :effect 
   (and 
@@ -168,18 +172,18 @@
 )
 ; 2.2 action of moving empty open Vertical Gripper.
 (:action Move_open_gripper_V
-  :parameters (?g - Gripper ?current_point  ?destination_point ?dest_upper ?dest_lower - Location)
+  :parameters (?g - Gripper ?current_point - Point_Air ?destination_point ?dest_upper ?dest_lower - Point_Workspace)
   :precondition 
   (and
     (is_open ?g)
     (unloaded ?g)
     (vertical ?g)
     (at ?g ?current_point)
+    (reachable ?g ?destination_point)
     (up ?destination_point ?dest_upper)
     (down ?destination_point ?dest_lower)
     (empty_location ?dest_upper)
     (empty_location ?dest_lower)
-    (not (= ?current_point ?destination_point))
   )
   :effect 
   (and 
@@ -189,18 +193,18 @@
 )
 ; 2.3 action of moving empty open Horizontal Gripper.
 (:action Move_open_gripper_H
-  :parameters (?g - Gripper ?current_point  ?destination_point ?dest_left ?dest_right - Location)
+  :parameters (?g - Gripper ?current_point - Point_Air  ?destination_point ?dest_left ?dest_right - Point_Workspace)
   :precondition 
   (and
     (is_open ?g)
     (unloaded ?g)
     (not (vertical ?g))
     (at ?g ?current_point)
+    (reachable ?g ?destination_point)
     (left ?destination_point ?dest_left)
     (right ?destination_point ?dest_right)
     (empty_location ?dest_left)
     (empty_location ?dest_right)
-    (not (= ?current_point ?destination_point))
   )
   :effect 
   (and 
@@ -208,14 +212,31 @@
     (at ?g ?destination_point)
   )
 )
-;=======================================
+; 2.4 action of raising up empty open Gripper.
+(:action Raise_open_gripper
+  :parameters (?g - Gripper ?current_point - Location ?top_point - Point_Air)
+  :precondition 
+  (and
+    (is_open ?g)
+    (unloaded ?g)
+    (at ?g ?current_point)
+    (reachable ?g ?top_point)
+    (not (= ?current_point ?top_point))
+  )
+  :effect 
+  (and 
+    (not(at ?g ?current_point))
+    (at ?g ?top_point)
+  )
+)
+; =======================================
 ; 3. Gripper Rotation Group of Actions |
-;=======================================
-;--------------------------------------------------
+; =======================================
+; --------------------------------------------------
 ; Note: All the Rotations are meant to be on Air, |
-;    No colloision detection or neighboring      |
+;    No collosion detection or neighboring        |
 ;        position assertion is done here!         |
-;--------------------------------------------------
+; --------------------------------------------------
 ; 3.1 action of rotating the empty Gripper H
 ; ( ? ) --> ( => <= )
 (:action Rotate_empty_gripper_H
@@ -1096,22 +1117,28 @@
 ;------------------------------------------------------------
 ; Note: All the Take Actions are meant to be to Air,  and   |
 ;    Vise-versa Put Actions are done from point on Air.     |
-;    No on-Air colloision detection assertion is done here! |
+;    No on-Air collosion detection assertion is done here! |
 ;------------------------------------------------------------
+;-------------------------
+; take subset of actions |
+;-------------------------
 ; 4.1 action of taking the 2x2_loaded Gripper
 ;  ||
-; -----     -----
-; | x | ; =>| x |<=
-; -----     -----
+; -----
+; | x | ;
+; -----
 ;  ||
 (:action take_2x2_V
-  :parameters (?x - Block ?g - Gripper ?pos ?point_air - Location)
+  :parameters (?x - Block ?g - Gripper ?point_air - Point_Air ?pos - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (at ?g ?pos); x
   (not (at ?g ?point_air)); x
+  (vertical ?g)
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (empty_location ?pos)); x
   (belong ?x ?pos); x
   (single ?x)
@@ -1131,13 +1158,15 @@
 ; ---------
 ;  ||
 (:action take_left_2x4
-  :parameters (?x ?y - Block ?g - Gripper ?pos ?point_air ?pos_right - Location)
+  :parameters (?x ?y - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_right - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (vertical ?g)
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_right)); x
@@ -1169,13 +1198,15 @@
 ; ---------
 ;       ||
 (:action take_right_2x4
-  :parameters (?x ?y - Block ?g - Gripper ?pos ?point_air ?pos_left - Location)
+  :parameters (?x ?y - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_left - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (vertical ?g)
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_left)); x
@@ -1207,13 +1238,15 @@
 ;   | y |
 ;   -----
 (:action take_upper_4x2
-  :parameters (?x ?y - Block ?g - Gripper ?pos ?point_air ?pos_lower - Location)
+  :parameters (?x ?y - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_lower - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (not (vertical ?g))
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_lower)); x
@@ -1245,13 +1278,15 @@
 ; =>| x |<=
 ;   -----
 (:action take_lower_4x2
-  :parameters (?x ?y - Block ?g - Gripper ?pos ?point_air ?pos_upper - Location)
+  :parameters (?x ?y - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (not (vertical ?g))
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_upper)); x
@@ -1282,13 +1317,15 @@
 ; -------------
 ;  ||
 (:action take_left_2x6
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_right ?pos_right_right - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_right ?pos_right_right - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (vertical ?g)
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_right)); x
@@ -1342,13 +1379,15 @@
 ; -------------
 ;       ||
 (:action take_middle_2x6
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_right ?pos_left - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (vertical ?g)
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_right)); x
@@ -1402,13 +1441,15 @@
 ; -------------
 ;           ||
 (:action take_right_2x6
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_left ?pos_left_left - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_left ?pos_left_left - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (vertical ?g)
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_left)); x
@@ -1464,13 +1505,15 @@
 ;   | z |
 ;   -----
 (:action take_upper_6x2
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_lower ?pos_lower_lower - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_lower ?pos_lower_lower - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (not (vertical ?g))
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_lower)); x
@@ -1526,13 +1569,15 @@
 ;   | z |
 ;   -----
 (:action take_middle_6x2
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_upper ?pos_lower - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper ?pos_lower - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (not (vertical ?g))
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_upper)); x
@@ -1588,13 +1633,15 @@
 ; =>| x |<=
 ;   -----
 (:action take_lower_6x2
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_upper ?pos_upper_upper - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper ?pos_upper_upper - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
   (not (is_open ?g))
   (not (vertical ?g))
   (at ?g ?pos); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (at ?g ?point_air)); x
   (not (empty_location ?pos)); x
   (not (empty_location ?pos_upper)); x
@@ -1641,6 +1688,9 @@
   (not (belong ?z ?pos_upper_upper))
   )
 )
+;------------------------
+; Put subset of actions |
+;------------------------
 ; 4.12 action of putting the 2x2_loaded Gripper
 ;  ||
 ; -----
@@ -1648,7 +1698,7 @@
 ; -----
 ;  ||
 (:action put_2x2_V
-  :parameters (?x - Block ?g - Gripper ?pos ?point_air ?pos_upper ?pos_lower - Location)
+  :parameters (?x - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper ?pos_lower - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -1656,6 +1706,8 @@
   (vertical ?g)
   (at ?g ?point_air); x
   (not (at ?g ?pos)); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (up ?pos_upper ?pos)
   (up ?pos ?pos_lower)
   (down ?pos ?pos_upper)
@@ -1678,7 +1730,7 @@
 ; =>| x |<=
 ;   -----
 (:action put_2x2_H
-  :parameters (?x - Block ?g - Gripper ?pos ?point_air ?pos_right ?pos_left - Location)
+  :parameters (?x - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_right ?pos_left - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -1686,6 +1738,8 @@
   (not (vertical ?g))
   (at ?g ?point_air); x
   (not (at ?g ?pos)); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (right ?pos_right ?pos)
   (right ?pos ?pos_left)
   (left ?pos_left ?pos)
@@ -1710,7 +1764,7 @@
 ; ---------
 ;  ||
 (:action put_left_2x4
-  :parameters (?x ?y - Block ?g - Gripper ?pos ?point_air ?pos_upper ?pos_lower ?pos_right - Location)
+  :parameters (?x ?y - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -1718,6 +1772,8 @@
   (vertical ?g)
   (at ?g ?point_air); x
   (not (at ?g ?pos)); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (connected ?x ?y)
@@ -1752,7 +1808,7 @@
 ; ---------
 ;       ||
 (:action put_right_2x4
-  :parameters (?x ?y - Block ?g - Gripper ?pos ?point_air ?pos_upper ?pos_lower ?pos_left - Location)
+  :parameters (?x ?y - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -1760,6 +1816,8 @@
   (vertical ?g)
   (at ?g ?point_air); x
   (not (at ?g ?pos)); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (connected ?x ?y)
@@ -1794,7 +1852,7 @@
 ;   | y |
 ;   -----
 (:action put_upper_4x2
-  :parameters (?x ?y - Block ?g - Gripper ?pos ?point_air ?pos_lower ?pos_left ?pos_right - Location)
+  :parameters (?x ?y - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_lower ?pos_left ?pos_right - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -1802,6 +1860,8 @@
   (not (vertical ?g))
   (at ?g ?point_air); x
   (not (at ?g ?pos)); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (connected ?x ?y)
@@ -1836,7 +1896,7 @@
 ; =>| x |<=
 ;   -----
 (:action put_lower_4x2
-  :parameters (?x ?y - Block ?g - Gripper ?pos ?point_air ?pos_upper ?pos_left ?pos_right - Location)
+  :parameters (?x ?y - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper ?pos_left ?pos_right - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -1844,6 +1904,8 @@
   (not (vertical ?g))
   (at ?g ?point_air); x
   (not (at ?g ?pos)); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (connected ?x ?y)
@@ -1878,7 +1940,7 @@
 ; -------------
 ;  ||
 (:action put_left_2x6
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_upper ?pos_lower ?pos_right ?pos_right_right - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_right_right - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -1886,6 +1948,8 @@
   (vertical ?g)
   (at ?g ?point_air); x
   (not (at ?g ?pos)); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (not (single ?z))
@@ -1938,7 +2002,7 @@
 ; -------------
 ;      ||
 (:action put_middle_2x6
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -1946,6 +2010,8 @@
   (vertical ?g)
   (at ?g ?point_air); x
   (not (at ?g ?pos)); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (not (single ?z))
@@ -1998,7 +2064,7 @@
 ; -------------
 ;           ||
 (:action put_right_2x6
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_upper ?pos_lower ?pos_left ?pos_left_left - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left ?pos_left_left - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -2006,6 +2072,8 @@
   (vertical ?g)
   (at ?g ?point_air); x
   (not (at ?g ?pos)); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (not (single ?z))
@@ -2060,7 +2128,7 @@
 ;   | z |
 ;   -----
 (:action put_upper_6x2
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_left ?pos_right ?pos_lower ?pos_lower_lower - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_left ?pos_right ?pos_lower ?pos_lower_lower - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -2068,6 +2136,8 @@
   (not (vertical ?g))
   (not (at ?g ?pos)); x
   (at ?g ?point_air); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (not (single ?z))
@@ -2122,7 +2192,7 @@
 ;   | z |
 ;   -----
 (:action put_middle_6x2
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_left ?pos_right ?pos_lower ?pos_upper - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_left ?pos_right ?pos_lower ?pos_upper - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -2130,6 +2200,8 @@
   (not (vertical ?g))
   (not (at ?g ?pos)); x
   (at ?g ?point_air); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (not (single ?z))
@@ -2184,7 +2256,7 @@
 ; =>| x |<=
 ;   -----
 (:action put_lower_6x2
-  :parameters (?x ?y ?z - Block ?g - Gripper ?pos ?point_air ?pos_left ?pos_right ?pos_upper ?pos_upper_upper - Location)
+  :parameters (?x ?y ?z - Block ?g - Gripper ?point_air - Point_Air ?pos ?pos_left ?pos_right ?pos_upper ?pos_upper_upper - Point_Workspace)
   :precondition 
   (and 
   (loaded ?x ?g)
@@ -2192,6 +2264,8 @@
   (not (vertical ?g))
   (not (at ?g ?pos)); x
   (at ?g ?point_air); x
+  (reachable ?g ?pos)
+  (reachable ?g ?point_air)
   (not (single ?x))
   (not (single ?y))
   (not (single ?z))
@@ -2247,7 +2321,7 @@
 ; -----     -----
 ;  ||
 (:action fill_stock_2x2_blue
-    :parameters (?x - Block ?pos - Location)
+    :parameters (?x - Block ?pos - Point_Workspace)
     :precondition 
     (and 
     (empty_location ?pos)
@@ -2267,7 +2341,7 @@
 ; -----     -----
 ;  ||
 (:action fill_stock_2x2_yellow
-    :parameters (?x - Block ?pos - Location)
+    :parameters (?x - Block ?pos - Point_Workspace)
     :precondition 
     (and 
     (empty_location ?pos)
@@ -2287,7 +2361,7 @@
 ; ---------
 ;       ||
 (:action fill_stock_2x4_blue
-    :parameters (?x ?y - Block ?pos ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_left - Point_Workspace)
     :precondition 
     (and 
     (empty_location ?pos)
@@ -2314,7 +2388,7 @@
 ; ---------
 ;       ||
 (:action fill_stock_2x4_yellow
-    :parameters (?x ?y - Block ?pos ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_left - Point_Workspace)
     :precondition 
     (and 
     (empty_location ?pos)
@@ -2341,7 +2415,7 @@
 ; -------------
 ;           ||
 (:action fill_stock_2x6_blue
-    :parameters (?x ?y ?z - Block ?pos ?pos_left ?pos_left_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_left ?pos_left_left - Point_Workspace)
     :precondition 
     (and 
     (empty_location ?pos)
@@ -2378,7 +2452,7 @@
 ; -------------
 ;           ||
 (:action fill_stock_2x6_yellow
-    :parameters (?x ?y ?z - Block ?pos ?pos_left ?pos_left_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_left ?pos_left_left - Point_Workspace)
     :precondition 
     (and 
     (empty_location ?pos)
@@ -2408,11 +2482,11 @@
     (color_yellow ?z)
     )
 )
-;=========================================
+;========================================
 ; 6. Block neighboring Group Of Actions |
-;=========================================
+;========================================
 ;---------------------------------------------------
-; Note: neighboring Actions has to be after place |
+; Note: neighboring Actions has to be after place  |
 ;       actions since there is a precondition of   |
 ;       location x is not empty!                   |
 ;---------------------------------------------------
@@ -2425,7 +2499,7 @@
 ;     |   |
 ;     -----
 (:action neighbor_right
-    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2459,7 +2533,7 @@
 ;     |   |
 ;     -----
 (:action neighbor_up
-    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2493,7 +2567,7 @@
 ;     |   |
 ;     -----
 (:action neighbor_left
-    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2527,7 +2601,7 @@
 ;     | y |
 ;     -----
 (:action neighbor_lower
-    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2561,7 +2635,7 @@
 ;     | z |
 ;     -----
 (:action neighbor_upper_lower
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2598,7 +2672,7 @@
 ;     |   |
 ;     -----
 (:action neighbor_left_right
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2635,7 +2709,7 @@
 ;     |   |
 ;     -----
 (:action neighbor_upper_left
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2672,7 +2746,7 @@
 ;     | z |
 ;     -----
 (:action neighbor_lower_right
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2709,7 +2783,7 @@
 ;     | z |
 ;     -----
 (:action neighbor_lower_left
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2746,7 +2820,7 @@
 ;     |   |
 ;     -----
 (:action neighbor_upper_right
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2783,7 +2857,7 @@
 ;     |   |
 ;     -----
 (:action neighbor_upper_left_right
-    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2823,7 +2897,7 @@
 ;     | z |
 ;     -----
 (:action neighbor_lower_left_right
-    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2863,7 +2937,7 @@
 ;     | w |
 ;     -----
 (:action neighbor_upper_lower_right
-    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2903,7 +2977,7 @@
 ;     | t |
 ;     -----
 (:action neighbor_all
-    :parameters (?x ?y ?z ?w ?t - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z ?w ?t - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2954,7 +3028,7 @@
 ;     |   |
 ;     -----
 (:action unneighbor_right
-    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -2988,7 +3062,7 @@
 ;     |   |
 ;     -----
 (:action unneighbor_up
-    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3022,7 +3096,7 @@
 ;     |   |
 ;     -----
 (:action unneighbor_left
-    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3056,7 +3130,7 @@
 ;     | y |
 ;     -----
 (:action unneighbor_lower
-    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3090,7 +3164,7 @@
 ;     | z |
 ;     -----
 (:action unneighbor_upper_lower
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3127,7 +3201,7 @@
 ;     |   |
 ;     -----
 (:action unneighbor_left_right
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3164,7 +3238,7 @@
 ;     |   |
 ;     -----
 (:action unneighbor_upper_left
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3201,7 +3275,7 @@
 ;     | z |
 ;     -----
 (:action unneighbor_lower_right
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3238,7 +3312,7 @@
 ;     | z |
 ;     -----
 (:action unneighbor_lower_left
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3275,7 +3349,7 @@
 ;     |   |
 ;     -----
 (:action unneighbor_upper_right
-    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3312,7 +3386,7 @@
 ;     |   |
 ;     -----
 (:action unneighbor_upper_left_right
-    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3352,7 +3426,7 @@
 ;     | z |
 ;     -----
 (:action unneighbor_lower_left_right
-    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3392,7 +3466,7 @@
 ;     | w |
 ;     -----
 (:action unneighbor_upper_lower_right
-    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3432,7 +3506,7 @@
 ;     | t |
 ;     -----
 (:action unneighbor_all
-    :parameters (?x ?y ?z ?w ?t - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+    :parameters (?x ?y ?z ?w ?t - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
     :precondition 
     (and
     (up ?pos_upper ?pos)
@@ -3466,12 +3540,45 @@
     (not (has_lower ?x ?t))
     )
 )
-;-------------------------------------------------------------------------
-;                               Methods                                  |
-;-------------------------------------------------------------------------
-;============================
+; -------------------------------------------------------------------------
+;                                Methods                                  |
+; -------------------------------------------------------------------------
+;===========================
 ; 1. Task neighbor Methods |
-;============================
+;===========================
+; 1.0 Method to define no neighbors
+;     -----
+;     |   | 
+; -------------
+; |   | x |   |
+; -------------
+;     |   |
+;     -----
+(:method no_neighbor
+  :parameters (?x - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
+  :task (neighbor ?x ?pos)
+  :precondition 
+  (and
+    (up ?pos_upper ?pos)
+    (up ?pos ?pos_lower)
+    (down ?pos ?pos_upper)
+    (down ?pos_lower ?pos)
+    (right ?pos_right ?pos)
+    (right ?pos ?pos_left)
+    (left ?pos_left ?pos)
+    (left ?pos ?pos_right)
+    (not (empty_location ?pos))
+    (empty_location ?pos_upper)
+    (empty_location ?pos_lower)
+    (empty_location ?pos_right)
+    (empty_location ?pos_left)
+    (belong ?x ?pos)
+  )
+  :ordered-subtasks 
+  (and
+
+  )
+)
 ; 1.1 Method to define neighbor in the right
 ;     -----
 ;     |   | 
@@ -3481,7 +3588,7 @@
 ;     |   |
 ;     -----
 (:method neighbor_2x2_right
-  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3515,7 +3622,7 @@
 ;     |   |
 ;     -----
 (:method neighbor_2x2_top
-  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3549,7 +3656,7 @@
 ;     |   |
 ;     -----
 (:method neighbor_2x2_left
-  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3583,7 +3690,7 @@
 ;     | y |
 ;     -----
 (:method neighbor_2x2_bottom
-  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3617,7 +3724,7 @@
 ;     | z |
 ;     -----
 (:method neighbor_2x2_top_bottom
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3652,7 +3759,7 @@
 ;     |   |
 ;     -----
 (:method neighbor_2x2_left_right
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3687,7 +3794,7 @@
 ;     |   |
 ;     -----
 (:method neighbor_2x2_left_top
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3722,7 +3829,7 @@
 ;     | z |
 ;     -----
 (:method neighbor_2x2_right_bottom
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3757,7 +3864,7 @@
 ;     | z |
 ;     -----
 (:method neighbor_2x2_left_bottom
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3792,7 +3899,7 @@
 ;     |   |
 ;     -----
 (:method neighbor_2x2_right_top
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3827,7 +3934,7 @@
 ;     |   |
 ;     -----
 (:method neighbor_2x2_except_bottom
-  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3863,7 +3970,7 @@
 ;     | z |
 ;     -----
 (:method neighbor_2x2_except_top
-  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3899,7 +4006,7 @@
 ;     | w |
 ;     -----
 (:method neighbor_2x2_except_left
-  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3935,7 +4042,7 @@
 ;     | t |
 ;     -----
 (:method neighbor_2x2_all
-  :parameters (?x ?y ?z ?w ?t - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z ?w ?t - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (neighbor ?x ?pos)
   :precondition 
   (and
@@ -3963,9 +4070,42 @@
     (neighbor_all ?x ?y ?z ?w ?t ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left)
   )
 )
-;==============================
+;=============================
 ; 2. Task Unneighbor Methods |
-;==============================
+;=============================
+; 2.0 Method to define no neighbors
+;     -----
+;     |   | 
+; -------------
+; |   | x |   |
+; -------------
+;     |   |
+;     -----
+(:method no_unneighbor
+  :parameters (?x - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
+  :task (unneighbor ?x ?pos)
+  :precondition 
+  (and
+    (up ?pos_upper ?pos)
+    (up ?pos ?pos_lower)
+    (down ?pos ?pos_upper)
+    (down ?pos_lower ?pos)
+    (right ?pos_right ?pos)
+    (right ?pos ?pos_left)
+    (left ?pos_left ?pos)
+    (left ?pos ?pos_right)
+    (not (empty_location ?pos))
+    (empty_location ?pos_upper)
+    (empty_location ?pos_lower)
+    (empty_location ?pos_right)
+    (empty_location ?pos_left)
+    (belong ?x ?pos)
+  )
+  :ordered-subtasks 
+  (and
+
+  )
+)
 ; 2.1 Method to unneighbor the Block to the right
 ;     -----
 ;     |   | 
@@ -3975,7 +4115,7 @@
 ;     |   |
 ;     -----
 (:method unneighbor_2x2_right
-  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4009,7 +4149,7 @@
 ;     |   |
 ;     -----
 (:method unneighbor_2x2_top
-  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4043,7 +4183,7 @@
 ;     |   |
 ;     -----
 (:method unneighbor_2x2_left
-  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4077,7 +4217,7 @@
 ;     | y |
 ;     -----
 (:method unneighbor_2x2_bottom
-  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4111,7 +4251,7 @@
 ;     | z |
 ;     -----
 (:method unneighbor_2x2_top_bottom
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4146,7 +4286,7 @@
 ;     |   |
 ;     -----
 (:method unneighbor_2x2_left_right
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4181,7 +4321,7 @@
 ;     |   |
 ;     -----
 (:method unneighbor_2x2_left_top
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4216,7 +4356,7 @@
 ;     | z |
 ;     -----
 (:method unneighbor_2x2_right_bottom
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4251,7 +4391,7 @@
 ;     | z |
 ;     -----
 (:method unneighbor_2x2_left_bottom
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4286,7 +4426,7 @@
 ;     |   |
 ;     -----
 (:method unneighbor_2x2_right_top
-  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4321,7 +4461,7 @@
 ;     |   |
 ;     -----
 (:method unneighbor_2x2_except_bottom
-  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4357,7 +4497,7 @@
 ;     | z |
 ;     -----
 (:method unneighbor_2x2_except_top
-  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4393,7 +4533,7 @@
 ;     | w |
 ;     -----
 (:method unneighbor_2x2_except_left
-  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z ?w - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4429,7 +4569,7 @@
 ;     | t |
 ;     -----
 (:method unneighbor_2x2_all
-  :parameters (?x ?y ?z ?w ?t - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?x ?y ?z ?w ?t - Block ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (unneighbor ?x ?pos)
   :precondition 
   (and
@@ -4464,15 +4604,17 @@
 ; Note: All pick-up methods assumes vertical gripper, and   |
 ;       horizontal placed Legos, since we have full control |
 ;       on the stock direction.                             |
+; Also note that I'm not applying the task of unneighboring |
+;   here, since I'm filling the stock regularly!            |
 ;------------------------------------------------------------
 ; 3.1 Method to pick-up 2x2 blue block
 ;  ||
 ; -----
-; | B |
+; | x | Blue
 ; -----
 ;  ||
 (:method pick_2x2_Blue
-  :parameters (?g - Gripper ?x ?y - Block ?point_air ?pos ?pos_upper ?pos_lower - Location)
+  :parameters (?g - Gripper ?x ?y - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4485,18 +4627,18 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_2x2_V ?x ?g ?pos ?point_air)
+    (take_2x2_V ?x ?g ?point_air ?pos)
     (fill_stock_2x2_blue ?y ?pos)
   )
 )
 ; 3.2 Method to pick-up 2x2 yellow block
 ;  ||
 ; -----
-; | Y |
+; | x | Yellow
 ; -----
 ;  ||
 (:method pick_2x2_Yellow
-  :parameters (?g - Gripper ?x ?y - Block ?point_air ?pos ?pos_upper ?pos_lower - Location)
+  :parameters (?g - Gripper ?x ?y - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4509,7 +4651,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_2x2_V ?x ?g ?pos ?point_air)
+    (take_2x2_V ?x ?g ?point_air ?pos)
     (fill_stock_2x2_yellow ?y ?pos)
   )
 )
@@ -4520,7 +4662,7 @@
 ; ---------
 ;  ||
 (:method pick_2x4_Blue_left
-  :parameters (?g - Gripper ?x ?y ?z ?w - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_right - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4537,7 +4679,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_left_2x4 ?x ?y ?g ?pos ?point_air ?pos_right)
+    (take_left_2x4 ?x ?y ?g ?point_air ?pos ?pos_right)
     (fill_stock_2x4_blue ?z ?w ?pos_right ?pos)
   )
 )
@@ -4548,7 +4690,7 @@
 ; ---------
 ;       ||
 (:method pick_2x4_Blue_right
-  :parameters (?g - Gripper ?x ?y ?z ?w - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_left - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4565,7 +4707,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_right_2x4 ?x ?y ?g ?pos ?point_air ?pos_left)
+    (take_right_2x4 ?x ?y ?g ?point_air ?pos ?pos_left)
     (fill_stock_2x4_blue ?z ?w ?pos ?pos_left)
   )
 )
@@ -4576,7 +4718,7 @@
 ; ---------
 ;  ||
 (:method pick_2x4_Yellow_left
-  :parameters (?g - Gripper ?x ?y ?z ?w - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_right - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4593,7 +4735,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_left_2x4 ?x ?y ?g ?pos ?point_air ?pos_right)
+    (take_left_2x4 ?x ?y ?g ?point_air ?pos ?pos_right)
     (fill_stock_2x4_yellow ?z ?w ?pos_right ?pos)
   )
 )
@@ -4604,7 +4746,7 @@
 ; ---------
 ;       ||
 (:method pick_2x4_Yellow_right
-  :parameters (?g - Gripper ?x ?y ?z ?w - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_left - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4621,7 +4763,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_right_2x4 ?x ?y ?g ?pos ?point_air ?pos_left)
+    (take_right_2x4 ?x ?y ?g ?point_air ?pos ?pos_left)
     (fill_stock_2x4_yellow ?z ?w ?pos ?pos_left)
   )
 )
@@ -4632,7 +4774,7 @@
 ; -------------
 ;   ||
 (:method pick_2x6_Blue_left
-  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_right_right - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_right_right - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4656,7 +4798,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_left_2x6 ?x ?y ?z ?g ?pos ?point_air ?pos_right ?pos_right_right)
+    (take_left_2x6 ?x ?y ?z ?g ?point_air ?pos ?pos_right ?pos_right_right)
     (fill_stock_2x6_blue ?w ?q ?r ?pos_right_right ?pos_right ?pos)
   )
 )
@@ -4667,7 +4809,7 @@
 ; -------------
 ;      ||
 (:method pick_2x6_Blue_middle
-  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4691,7 +4833,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_middle_2x6 ?x ?y ?z ?g ?pos ?point_air ?pos_right ?pos_left)
+    (take_middle_2x6 ?x ?y ?z ?g ?point_air ?pos ?pos_right ?pos_left)
     (fill_stock_2x6_blue ?w ?q ?r ?pos_right ?pos ?pos_left)
   )
 )
@@ -4702,7 +4844,7 @@
 ; -------------
 ;           ||
 (:method pick_2x6_Blue_right
-  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_left ?pos_left_left - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left ?pos_left_left - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4726,7 +4868,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_right_2x6 ?x ?y ?z ?g ?pos ?point_air ?pos_left ?pos_left_left)
+    (take_right_2x6 ?x ?y ?z ?g ?point_air ?pos ?pos_left ?pos_left_left)
     (fill_stock_2x6_blue ?w ?q ?r ?pos_left_left ?pos_left ?pos)
   )
 )
@@ -4737,7 +4879,7 @@
 ; -------------
 ;   ||
 (:method pick_2x6_Yellow_left
-  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_right_right - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_right_right - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4761,7 +4903,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_left_2x6 ?x ?y ?z ?g ?pos ?point_air ?pos_right ?pos_right_right)
+    (take_left_2x6 ?x ?y ?z ?g ?point_air ?pos ?pos_right ?pos_right_right)
     (fill_stock_2x6_yellow ?w ?q ?r ?pos_right_right ?pos_right ?pos)
   )
 )
@@ -4772,7 +4914,7 @@
 ; -------------
 ;      ||
 (:method pick_2x6_Yellow_middle
-  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4796,7 +4938,7 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_middle_2x6 ?x ?y ?z ?g ?pos ?point_air ?pos_right ?pos_left)
+    (take_middle_2x6 ?x ?y ?z ?g ?point_air ?pos ?pos_right ?pos_left)
     (fill_stock_2x6_yellow ?w ?q ?r ?pos_right ?pos ?pos_left)
   )
 )
@@ -4807,7 +4949,7 @@
 ; -------------
 ;           ||
 (:method pick_2x6_Yellow_right
-  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air ?pos ?pos_upper ?pos_lower ?pos_left ?pos_left_left - Location)
+  :parameters (?g - Gripper ?x ?y ?z ?w ?q ?r - Block ?point_air - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left ?pos_left_left - Point_Workspace)
   :task (pick ?g ?x ?pos)
   :precondition 
   (and
@@ -4831,20 +4973,511 @@
     (Rotate_empty_gripper_V ?g)
     (Move_open_gripper_V ?g ?point_air ?pos ?pos_upper ?pos_lower)
     (Hold_gripper ?x ?g ?pos)
-    (take_right_2x6 ?x ?y ?z ?g ?pos ?point_air ?pos_left ?pos_left_left)
+    (take_right_2x6 ?x ?y ?z ?g ?point_air ?pos ?pos_left ?pos_left_left)
     (fill_stock_2x6_yellow ?w ?q ?r ?pos_left_left ?pos_left ?pos)
   )
 )
 ;========================
 ; 4. Task Place Methods |
 ;========================
-; 4.1 Method to pick-up 2x2 blue block held with vertical gripper
-;    ||q
+;------------------------------------------------------------
+; Note: All place  methods assumes vertical gripper, and    |
+;       horizontal placed Legos, hence one rotation only is |
+;       considered if necessary.                            |
+;------------------------------------------------------------
+; 4.1 Method to place_down 2x2 block held with vertical gripper
+;   ||
+;  -----
+;  | x |
+;  -----
+;   ||
+(:method place_2x2_V
+  :parameters (?g - Gripper ?x - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (single ?x)
+    (empty_location ?pos_upper)
+    (empty_location ?pos_lower)
+    (up ?pos_upper ?pos)
+    (up ?pos ?pos_lower)
+    (down ?pos_lower ?pos)
+    (down ?pos ?pos_upper)
+    (not (= ?point_air ?point_top))
+  )
+  :ordered-subtasks 
+  (and
+    (put_2x2_V ?x ?g ?point_air ?pos ?pos_upper ?pos_lower)
+    (neighbor ?x ?pos)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.2 Method to place_down 2x2 block held with horizontal gripper
+;    -----
+;  =>| x |<= 
+;    -----
+(:method place_2x2_H
+  :parameters (?g - Gripper ?x - Block ?point_air ?point_top - Point_Air ?pos ?pos_left ?pos_right - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (single ?x)
+    (empty_location ?pos_right)
+    (empty_location ?pos_left)
+    (right ?pos_right ?pos)
+    (right ?pos ?pos_left)
+    (left ?pos_left ?pos)
+    (left ?pos ?pos_right)
+    (not (= ?point_air ?point_top))
+  )
+  :ordered-subtasks 
+  (and
+    (Rotate_2x2_loaded_gripper_V2H ?g ?x)
+    (put_2x2_H ?x ?g ?point_air ?pos ?pos_right ?pos_left)
+    (neighbor ?x ?pos)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.3 Method to place_down 2x4 block held from left with vertical gripper
+;   ||
+;  ---------
+;  | x | y |
+;  ---------
+;   ||
+(:method place_left_2x4
+  :parameters (?g - Gripper ?x ?y - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (connected ?x ?y)
+    (connected ?y ?x)
+    (empty_location ?pos_upper)
+    (empty_location ?pos_lower)
+    (up ?pos_upper ?pos)
+    (up ?pos ?pos_lower)
+    (down ?pos_lower ?pos)
+    (down ?pos ?pos_upper)
+    (right ?pos_right ?pos)
+    (left ?pos ?pos_right)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_right)
+  )
+  :ordered-subtasks 
+  (and
+    (put_left_2x4 ?x ?y ?g ?point_air ?pos ?pos_upper ?pos_lower ?pos_right)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_right)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.4 Method to place_down 2x4 block held from right with vertical gripper
+;        ||
+;  ---------
+;  | y | x |
+;  ---------
+;        ||
+(:method place_right_2x4
+  :parameters (?g - Gripper ?x ?y - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (connected ?x ?y)
+    (connected ?y ?x)
+    (empty_location ?pos_upper)
+    (empty_location ?pos_lower)
+    (up ?pos_upper ?pos)
+    (up ?pos ?pos_lower)
+    (down ?pos_lower ?pos)
+    (down ?pos ?pos_upper)
+    (left ?pos_left ?pos)
+    (right ?pos ?pos_left)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_left)
+  )
+  :ordered-subtasks 
+  (and
+    (put_right_2x4 ?x ?y ?g ?point_air ?pos ?pos_upper ?pos_lower ?pos_left)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_left)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.5 Method to place_down 4x2 block held from top with horizontal gripper
 ;   -----
-; w | B | r
+; =>| x |<=
 ;   -----
-;    ||t
-
+;   | y |
+;   -----
+(:method place_upper_4x2
+  :parameters (?g - Gripper ?x ?y - Block ?point_air ?point_top - Point_Air ?pos ?pos_lower ?pos_left ?pos_right - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (connected ?x ?y)
+    (connected ?y ?x)
+    (empty_location ?pos_left)
+    (empty_location ?pos_right)
+    (up ?pos ?pos_lower)
+    (down ?pos_lower ?pos)
+    (left ?pos_left ?pos)
+    (left ?pos ?pos_right)
+    (right ?pos_right ?pos)
+    (right ?pos ?pos_left)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_lower)
+  )
+  :ordered-subtasks 
+  (and
+    (put_upper_4x2 ?x ?y ?g ?point_air ?pos ?pos_lower ?pos_left ?pos_right)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_lower)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.6 Method to place_down 4x2 block held from top with horizontal gripper
+;   -----
+;   | y |
+;   -----
+; =>| x |<=
+;   -----
+(:method place_lower_4x2
+  :parameters (?g - Gripper ?x ?y - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_left ?pos_right - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (connected ?x ?y)
+    (connected ?y ?x)
+    (empty_location ?pos_left)
+    (empty_location ?pos_right)
+    (up ?pos_upper ?pos)
+    (down ?pos ?pos_upper)
+    (left ?pos_left ?pos)
+    (left ?pos ?pos_right)
+    (right ?pos_right ?pos)
+    (right ?pos ?pos_left)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_upper)
+  )
+  :ordered-subtasks 
+  (and
+    (put_lower_4x2 ?x ?y ?g ?point_air ?pos ?pos_upper ?pos_left ?pos_right)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_upper)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.7 Method to place_down 2x6 block held from left with vertical gripper
+;  ||
+; -------------
+; | x | y | z |
+; -------------
+;  ||
+(:method place_left_2x6
+  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_right_right - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (double_connected ?x ?y ?z)
+    (double_connected ?x ?z ?y)
+    (double_connected ?y ?x ?z)
+    (double_connected ?y ?z ?x)
+    (double_connected ?z ?y ?x)
+    (double_connected ?z ?x ?y)
+    (empty_location ?pos_upper)
+    (empty_location ?pos_lower)
+    (up ?pos_upper ?pos)
+    (up ?pos ?pos_lower)
+    (down ?pos ?pos_upper)
+    (down ?pos_lower ?pos)
+    (left ?pos ?pos_right)
+    (left ?pos_right ?pos_right_right)
+    (right ?pos_right_right ?pos_right)
+    (right ?pos_right ?pos)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_right)
+    (workspace ?pos_right_right)
+  )
+  :ordered-subtasks 
+  (and
+    (put_left_2x6 ?x ?y ?z ?g ?point_air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_right_right)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_right)
+    (neighbor ?y ?pos_right_right)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.8 Method to place_down 2x6 block held from middle with vertical gripper
+;      ||
+; -------------
+; | y | x | z |
+; -------------
+;      ||
+(:method place_middle_2x6
+  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (double_connected ?x ?y ?z)
+    (double_connected ?x ?z ?y)
+    (double_connected ?y ?x ?z)
+    (double_connected ?y ?z ?x)
+    (double_connected ?z ?y ?x)
+    (double_connected ?z ?x ?y)
+    (empty_location ?pos_upper)
+    (empty_location ?pos_lower)
+    (up ?pos_upper ?pos)
+    (up ?pos ?pos_lower)
+    (down ?pos ?pos_upper)
+    (down ?pos_lower ?pos)
+    (left ?pos_left ?pos)
+    (left ?pos ?pos_right)
+    (right ?pos_right ?pos)
+    (right ?pos ?pos_left)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_right)
+    (workspace ?pos_left)
+  )
+  :ordered-subtasks 
+  (and
+    (put_middle_2x6 ?x ?y ?z ?g ?point_air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_right)
+    (neighbor ?y ?pos_left)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.9 Method to place_down 2x6 block held from right with vertical gripper
+;           ||
+; -------------
+; | z | y | x |
+; -------------
+;           ||
+(:method place_right_2x6
+  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left_left ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (double_connected ?x ?y ?z)
+    (double_connected ?x ?z ?y)
+    (double_connected ?y ?x ?z)
+    (double_connected ?y ?z ?x)
+    (double_connected ?z ?y ?x)
+    (double_connected ?z ?x ?y)
+    (empty_location ?pos_upper)
+    (empty_location ?pos_lower)
+    (up ?pos_upper ?pos)
+    (up ?pos ?pos_lower)
+    (down ?pos ?pos_upper)
+    (down ?pos_lower ?pos)
+    (left ?pos_left ?pos)
+    (left ?pos_left_left ?pos_left)
+    (right ?pos_left ?pos_left_left)
+    (right ?pos ?pos_left)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_left_left)
+    (workspace ?pos_left)
+  )
+  :ordered-subtasks 
+  (and
+    (put_right_2x6 ?x ?y ?z ?g ?point_air ?pos ?pos_upper ?pos_lower ?pos_left ?pos_left_left)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_left)
+    (neighbor ?y ?pos_left_left)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.10 Method to place_down 6x2 block held from top with horizontal gripper
+;   -----
+; =>| x |<=
+;   -----
+;   | y |
+;   -----
+;   | z |
+;   -----
+(:method place_top_6x2
+  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_lower ?pos_lower_lower ?pos_right ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (double_connected ?x ?y ?z)
+    (double_connected ?x ?z ?y)
+    (double_connected ?y ?x ?z)
+    (double_connected ?y ?z ?x)
+    (double_connected ?z ?y ?x)
+    (double_connected ?z ?x ?y)
+    (empty_location ?pos_left)
+    (empty_location ?pos_right)
+    (up ?pos_lower ?pos_lower_lower)
+    (up ?pos ?pos_lower)
+    (down ?pos_lower_lower ?pos_lower)
+    (down ?pos_lower ?pos)
+    (left ?pos_left ?pos)
+    (right ?pos ?pos_left)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_lower_lower)
+    (workspace ?pos_lower)
+  )
+  :ordered-subtasks 
+  (and
+    (put_upper_6x2 ?x ?y ?z ?g ?point_air ?pos ?pos_left ?pos_right ?pos_lower ?pos_lower_lower)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_lower)
+    (neighbor ?y ?pos_lower_lower)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.11 Method to place_down 6x2 block held from middle with horizontal gripper
+;   -----
+;   | y |
+;   -----
+; =>| x |<=
+;   -----
+;   | z |
+;   -----
+(:method place_middle_6x2
+  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (double_connected ?x ?y ?z)
+    (double_connected ?x ?z ?y)
+    (double_connected ?y ?x ?z)
+    (double_connected ?y ?z ?x)
+    (double_connected ?z ?y ?x)
+    (double_connected ?z ?x ?y)
+    (empty_location ?pos_left)
+    (empty_location ?pos_right)
+    (up ?pos_upper ?pos)
+    (up ?pos ?pos_lower)
+    (down ?pos ?pos_upper)
+    (down ?pos_lower ?pos)
+    (left ?pos_left ?pos)
+    (right ?pos ?pos_left)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_upper)
+    (workspace ?pos_lower)
+  )
+  :ordered-subtasks 
+  (and
+    (put_middle_6x2 ?x ?y ?z ?g ?point_air?pos ?pos_left ?pos_right ?pos_lower ?pos_upper)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_upper)
+    (neighbor ?y ?pos_lower)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
+; 4.12 Method to place_down 6x2 block held from bottom with horizontal gripper
+;   -----
+;   | z |
+;   -----
+;   | y |
+;   -----
+; =>| x |<=
+;   -----
+(:method place_bottom_6x2
+  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_upper_upper ?pos_right ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?pos ?point_top)
+  :precondition 
+  (and
+    (double_connected ?x ?y ?z)
+    (double_connected ?x ?z ?y)
+    (double_connected ?y ?x ?z)
+    (double_connected ?y ?z ?x)
+    (double_connected ?z ?y ?x)
+    (double_connected ?z ?x ?y)
+    (empty_location ?pos_left)
+    (empty_location ?pos_right)
+    (up ?pos_upper ?pos)
+    (up ?pos_upper_upper ?pos_upper)
+    (down ?pos ?pos_upper)
+    (down ?pos_upper ?pos_upper_upper)
+    (left ?pos_left ?pos)
+    (right ?pos ?pos_left)
+    (not (= ?point_air ?point_top))
+    (workspace ?pos_upper_upper)
+    (workspace ?pos_upper)
+  )
+  :ordered-subtasks 
+  (and
+    (put_lower_6x2 ?x ?y ?z ?g ?point_air ?pos ?pos_left ?pos_right ?pos_upper ?pos_upper_upper)
+    (neighbor ?x ?pos)
+    (neighbor ?y ?pos_upper)
+    (neighbor ?y ?pos_upper_upper)
+    (Release_gripper ?x ?g)
+    (Raise_open_gripper ?g ?pos ?point_top)
+    (Close_gripper ?g)
+    (Move_closed_gripper ?g ?point_top ?pos)
+    (Move_closed_gripper ?g ?pos ?point_top)
+    (Open_gripper ?g)
+    (Raise_open_gripper ?g ?point_top ?point_air)
+  )
+)
 ;========================
 ; 5. Task Shift Methods |
 ;========================
