@@ -32,6 +32,7 @@
   Location - object 
   Block - object ; Block 2x2.
   Gripper - object ; holds at most 1 Lego, only 1 Gripper per Location.
+  Direction - object; parameter to define the placement direction
 )
 ;-------------------------------------------------------------------------
 ;                          Predicates                                    |
@@ -65,6 +66,8 @@
   (loaded ?x - Block ?g - Gripper); Gripper g is loaded with Lego block.
   (at ?g - Gripper ?l - Location); Gripper g is in Location l.
   (reachable ?g - Gripper ?l - Location); to define whether if this location is reachable by this gripper.
+  ;; define placement direction
+  (lego_vertical ?d - Direction)
 )
 ;-------------------------------------------------------------------------
 ;                               Tasks                                    |
@@ -83,7 +86,7 @@
 )
 ; 4. The task of placing a Lego.
 (:task place
-  :parameters (?g - Gripper ?x - Block ?pos - Point_Workspace ?point_top - Point_Air)
+  :parameters (?g - Gripper ?x - Block ?d - Direction ?pos - Point_Workspace ?point_top - Point_Air)
 )
 ; 5. The task of shifting stock from Robot stock to Operator stock.
 ; (:task shift
@@ -4992,8 +4995,8 @@
 ;  -----
 ;   ||
 (:method place_2x2_V
-  :parameters (?g - Gripper ?x - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
     (single ?x)
@@ -5023,8 +5026,8 @@
 ;  =>| x |<= 
 ;    -----
 (:method place_2x2_H
-  :parameters (?g - Gripper ?x - Block ?point_air ?point_top - Point_Air ?pos ?pos_left ?pos_right - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_left ?pos_right - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
     (single ?x)
@@ -5057,10 +5060,11 @@
 ;  ---------
 ;   ||
 (:method place_left_2x4
-  :parameters (?g - Gripper ?x ?y - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (not (lego_vertical ?d))
     (connected ?x ?y)
     (connected ?y ?x)
     (empty_location ?pos_upper)
@@ -5095,10 +5099,11 @@
 ;  ---------
 ;        ||
 (:method place_right_2x4
-  :parameters (?g - Gripper ?x ?y - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (not (lego_vertical ?d))
     (connected ?x ?y)
     (connected ?y ?x)
     (empty_location ?pos_upper)
@@ -5133,10 +5138,11 @@
 ;   | y |
 ;   -----
 (:method place_upper_4x2
-  :parameters (?g - Gripper ?x ?y - Block ?point_air ?point_top - Point_Air ?pos ?pos_lower ?pos_left ?pos_right - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_lower ?pos_left ?pos_right - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (lego_vertical ?d)
     (connected ?x ?y)
     (connected ?y ?x)
     (empty_location ?pos_left)
@@ -5171,10 +5177,11 @@
 ; =>| x |<=
 ;   -----
 (:method place_lower_4x2
-  :parameters (?g - Gripper ?x ?y - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_left ?pos_right - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_left ?pos_right - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (lego_vertical ?d)
     (connected ?x ?y)
     (connected ?y ?x)
     (empty_location ?pos_left)
@@ -5209,10 +5216,11 @@
 ; -------------
 ;  ||
 (:method place_left_2x6
-  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_right_right - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y ?z - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_right_right - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (not (lego_vertical ?d))
     (double_connected ?x ?y ?z)
     (double_connected ?x ?z ?y)
     (double_connected ?y ?x ?z)
@@ -5255,10 +5263,11 @@
 ; -------------
 ;      ||
 (:method place_middle_2x6
-  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y ?z - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (not (lego_vertical ?d))
     (double_connected ?x ?y ?z)
     (double_connected ?x ?z ?y)
     (double_connected ?y ?x ?z)
@@ -5301,10 +5310,11 @@
 ; -------------
 ;           ||
 (:method place_right_2x6
-  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left_left ?pos_left - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y ?z - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_left_left ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (not (lego_vertical ?d))
     (double_connected ?x ?y ?z)
     (double_connected ?x ?z ?y)
     (double_connected ?y ?x ?z)
@@ -5349,10 +5359,11 @@
 ;   | z |
 ;   -----
 (:method place_top_6x2
-  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_lower ?pos_lower_lower ?pos_right ?pos_left - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y ?z - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_lower ?pos_lower_lower ?pos_right ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (lego_vertical ?d)
     (double_connected ?x ?y ?z)
     (double_connected ?x ?z ?y)
     (double_connected ?y ?x ?z)
@@ -5395,10 +5406,11 @@
 ;   | z |
 ;   -----
 (:method place_middle_6x2
-  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y ?z - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_lower ?pos_right ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (lego_vertical ?d)
     (double_connected ?x ?y ?z)
     (double_connected ?x ?z ?y)
     (double_connected ?y ?x ?z)
@@ -5441,10 +5453,11 @@
 ; =>| x |<=
 ;   -----
 (:method place_bottom_6x2
-  :parameters (?g - Gripper ?x ?y ?z - Block ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_upper_upper ?pos_right ?pos_left - Point_Workspace)
-  :task (place ?g ?x ?pos ?point_top)
+  :parameters (?g - Gripper ?x ?y ?z - Block ?d - Direction ?point_air ?point_top - Point_Air ?pos ?pos_upper ?pos_upper_upper ?pos_right ?pos_left - Point_Workspace)
+  :task (place ?g ?x ?d ?pos ?point_top)
   :precondition 
   (and
+    (lego_vertical ?d)
     (double_connected ?x ?y ?z)
     (double_connected ?x ?z ?y)
     (double_connected ?y ?x ?z)
