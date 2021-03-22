@@ -5,14 +5,13 @@
     g g2 - Gripper
     x y z - Block
     point_air point_air2 - Point_Air
-    pos pos_upper pos_lower - Point_Workspace
+    pos pos_upper pos_lower pos_left pos_right - Point_Workspace
     )
 
     (:htn
         :ordered-subtasks
         (and
             (t1 (pick g x pos))
-            (t2 (pick g2 y pos))
         )
     )
 
@@ -29,13 +28,28 @@
         (is_open g2)
         (single x)
         (color_blue x)
+
         (belong x pos)
         (empty_location pos_upper)
         (empty_location pos_lower)
+        (empty_location pos_left)
+        (empty_location pos_right)
+
         (up pos_upper pos)
         (up pos pos_lower)
         (down pos_lower pos)
         (down pos pos_upper)
+        (left pos_left pos)
+        (left pos pos_right)
+        (right pos_right pos)
+        (right pos pos_left)
+
+        (belong y pos_right)
+        (belong z pos_left)
+        (has_left x z)
+        (has_right z x)
+        (has_right x y)
+        (has_left y x)
     )
 
 )
