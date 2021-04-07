@@ -31,19 +31,24 @@ class communicator():
         self.password = password
         self.port     = port
 
-    def getImage(self, remotePath='vision/image.jpg', localPath):
+        self.camController(1)
+        self.commander('sudo ./vision/grabber.py')
+        sleep(.5)
+
+    def getImage(self, localPath, remotePath='vision/image.jpg'):
         """
         Function: getImage, to copy the image from the Raspberry pi to a localPath in PC.
         ---
         Parameters:
-        @param: remotePath, string, the path to the image on the Pi.
         @param: localPath, string, the path to the destination folder.
+        @param: remotePath, string, the path to the image on the Pi.
         ---
         @return: None.
         """
-        transport = paramiko.Transport((host, port))
+        transport = paramiko.Transport((self.host, self.port))
         transport.connect(username = self.username, password = self.password)
         sftp = paramiko.SFTPClient.from_transport(transport)
+        
         sftp.get(remotePath, localPath+'image.jpg')
 
         sftp.close()
@@ -66,11 +71,13 @@ class communicator():
             if(keyfilename is None):
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.load_system_host_keys()
                 ssh.connect(hostname = self.host, username = self.username, password = self.password)
             else:
                 k = paramiko.RSAKey.from_private_key_file(keyfilename) 
                 # k = paramiko.DSSKey.from_private_key_file(keyfilename)
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.load_system_host_keys()
                 ssh.connect(hostname=host, username=user, pkey=k)
 
             ftp  = ssh.open_sftp()
@@ -93,6 +100,7 @@ class communicator():
         """
         if(keyfilename is None):
             ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(hostname = self.host, username = self.username, password = self.password)
             ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(cmd_to_execute)
         else:
@@ -100,13 +108,14 @@ class communicator():
             # k = paramiko.DSSKey.from_private_key_file(keyfilename)
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(hostname=host, username=user, pkey=k)
+            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(cmd_to_execute)
 
 #======================
 # class visionHandler |
 #======================
 class visionHandler():
 
-    def __init__(self, pi_id, path):
+    def __init__(self, path, pi_id=1):
         """
         Class visionHandler: Read and Process images remotely.
         ---
@@ -157,8 +166,9 @@ class visionHandler():
         """
         # capture an image.
         self.com.camController(1)
-        self.com.commander('./vision/grabber.py')
         self.com.camController(2)
+        self.com.camController(1)
+
         self.com.getImage(self.path)
         self.com.camController(1)
         # Process the image.
@@ -183,7 +193,6 @@ class visionHandler():
 
         # capture an image.
         self.com.camController(2)
-        self.com.commander('./vision/grabber.py')
         self.com.getImage(self.path)
         # Process the image.
         proc = imageProcessor(self.path)
@@ -191,15 +200,14 @@ class visionHandler():
         while(proc.handDetector()):
             self.hand = True
             self.humanAction = True
-            sleep(1)
             self.com.getImage(self.path)
-
+            sleep(1)
         self.com.camController(1)
         self.hand = False
 
 #----------------------------------------------------------------------------------
 
-# path = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
+path = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
 
-# vh = visionHandler(path)
-# vh.captureWorld()
+vh = visionHandler(path=path)
+vh.captureWorld()

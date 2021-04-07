@@ -280,7 +280,7 @@ class imageProcessor():
         ---
         @return: centerPortion, nd array, cropped workspace.
         """
-        if(self.workspaceCoords is not None):
+        if(not None in self.workspaceCoords):
             # Check out the big rectangle at the center:
             bigRectX = self.workspaceCoords[0]
             bigRectY = self.workspaceCoords[1]
