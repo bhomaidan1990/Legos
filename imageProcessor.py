@@ -11,7 +11,8 @@ Reference:
 https://stackoverflow.com/a/66863584
 """
 
-# Importing cv2 and numpy:
+import os
+import sys
 import numpy as np
 import cv2
 
@@ -20,14 +21,13 @@ import cv2
 #=======================
 class imageProcessor():
 
-    def __init__(self, imgPath, imgName='image.jpg', verbose=False):
+    def __init__(self, imgPath, imgName='image.jpg'):
         """
         Class imageProcessor: Read and Process image to get world state.
         ---
         Parameters:
         @param: imgPath, string, the path to the image to process.
         @param: imgName, string, the name of the image including the extension.
-        @param: verbose, boolean, to show the output of the function.
         """
 
         self.imgPath = imgPath
@@ -35,70 +35,88 @@ class imageProcessor():
         self.workspaceCoords = None
         self.cellsState = {
         # First column
-        0:  ['ws_11', 'g'],
-        1:  ['ws_12', 'g'],
-        2:  ['ws_13', 'g'],
-        3:  ['ws_14', 'g'],
+        0:  ['ws_11', 'g'], 1:  ['ws_12', 'g'], 2:  ['ws_13', 'g'], 3:  ['ws_14', 'g'],
         # Second column
-        4:  ['ws_21', 'g'],
-        5:  ['ws_22', 'g'],
-        6:  ['ws_23', 'g'],
-        7:  ['ws_24', 'g'],
+        4:  ['ws_21', 'g'], 5:  ['ws_22', 'g'], 6:  ['ws_23', 'g'], 7:  ['ws_24', 'g'],
         # Third column
-        8:  ['ws_31', 'g'],
-        9:  ['ws_32', 'g'],
-        10: ['ws_33', 'g'],
-        11: ['ws_34', 'g'],
+        8:  ['ws_31', 'g'], 9:  ['ws_32', 'g'], 10: ['ws_33', 'g'], 11: ['ws_34', 'g'],
         # Fourth column
-        12: ['ws_41', 'g'],
-        13: ['ws_42', 'g'],
-        14: ['ws_43', 'g'],
-        15: ['ws_44', 'g']
+        12: ['ws_41', 'g'], 13: ['ws_42', 'g'], 14: ['ws_43', 'g'], 15: ['ws_44', 'g']
         }
         self.swapState = {
         # Swap
-        0: ['s1'   , 'g'],
-        1: ['s2'   , 'g'],
-        2: ['s3'   , 'g']
+        's1' : 'g',
+        's2' : 'g',
+        's3' : 'g'
+        }
+        self.humanStock = {
+        'b_2x2': 1,
+        'b_2x4': 1,
+        'y_2x2': 1,
+        'y_2x4': 1
         }
 
-    def HSV_mask(self, lower=[127, 0, 95], upper=[179, 255, 255], verbose=False):
+    def undistort(self, img):
         """
-        Function: HSV_mask, to threshold the image in HSV colorspace within given range.
+        Function: undistort, to undistort fisheyes lens distortion.
         ---
         Parameters:
-        @param: lower, list, the lower values of the Hue, Saturaion, Value.
-        @param: upper, list, the upper values of the Hue, Saturaion, Value.
-        @param: verbose, boolean, to show the output of the function.
+        @param: img, ndarray, image frame of shape [height, width, 3(BGR)].
         ---
-        @return: mask, nd array binary mask resulting from HSV masking,
-                inputCopy, nd array, deepcopy of the original image.
+        @return: undistorted_img, ndarray, the undistorted image.
+        """
+        dim = img.shape[:2][::-1]
+        cv_file = cv2.FileStorage(self.imgPath+"cam_01.yaml", cv2.FILE_STORAGE_READ)
+        K  = cv_file.getNode("camera_matrix").mat()
+        D  = cv_file.getNode("dist_coeff").mat()
+        cv_file.release()
+        new_K = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, D, dim, np.eye(3), balance=1)
+        map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D , np.eye(3), new_K, dim, cv2.CV_16SC2)
+        undistorted_img = cv2.remap(img, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        return undistorted_img
+
+    def HSV_mask(self, img, color):
+        """
+        Function: check_HSV, to get the ratio of the marked pixels of specific color in the frame,
+          using HSV space.
+        ---
+        Parameters:
+        @param: img, ndarray, image frame of shape [height, width, 3(BGR)].
+        @param: color, string, defines the color from ["red", "green", "blue", "yellow"]
+        ---
+        @return: mask, ndarray, the masked image for the given color.
         """
 
-        # Reading an image in default mode:
-        inputImage = cv2.imread(self.imgPath + self.imgName)
-        # Store a deep copy for results:
-        inputCopy = inputImage.copy()
+        colors = ['red', 'green', 'blue', 'yellow']
+        if not color in colors:
+            print('Please Note that the color has to be either: red, green, blue, or yellow]\n')
+            return np.zeros_like(img)[...,0]
 
-        # Convert the image to HSV:
-        hsvImage = cv2.cvtColor(inputImage, cv2.COLOR_BGR2HSV)
+        hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
 
-        # The HSV mask values (Red):
-        lowerValues = np.array(lower)
-        upperValues = np.array(upper)
+        # Dictionary to map the range of the Hue, Saturation, Value(illumination) of each color.
+        V_limits = (20, 255)
+        S_limits = (100, 255)
+        HSV_ranges = {
+        "red":      (  175, 5) + S_limits + V_limits,
+        "green":    ( 40,  80) + S_limits + V_limits,
+        "blue":     (100, 140, 20, 255, 20,255),
+        "yellow":   ( 23, 33) + S_limits + V_limits
+        }
 
-        # Create the HSV mask
-        mask = cv2.inRange(hsvImage, lowerValues, upperValues)
+        HSV= HSV_ranges[color]
+        # checking the marked pixels in the captured_hsv_frame
+        if HSV[0]<HSV[1] :
+            mask=cv2.inRange(hsv_img,HSV[0::2],HSV[1::2])
+        else:
+            # Red color has two ranges
+            mask1 = cv2.inRange(hsv_img,(0,HSV[2],HSV[4]), (HSV[1],HSV[3],HSV[5]))
+            mask2 = cv2.inRange(hsv_img, (HSV[0],HSV[2],HSV[4]), (180,HSV[3],HSV[5]))
+            mask  = cv2.bitwise_or(mask1, mask2)
 
-        # Visualize results
-        if(verbose):
-            cv2.namedWindow('HSV mask', cv2.WINDOW_NORMAL)
-            cv2.imshow('HSV mask', mask)
-            cv2.waitKey(0)
+        return mask
 
-        return mask, inputCopy
-
-    def Morhology(self, mask, k=5, iters=10, verbose=False):
+    def Morhology(self, mask, th=50, k=5, iters=10, verbose=False):
         """
         Function: Morhology, to do morhological closing to the mask.
         ---
@@ -109,13 +127,18 @@ class imageProcessor():
         @param: verbose, boolean, to show the output of the function.
         ---
         @return: mask, nd array binary mask resulting from HSV masking,
-                maskCopy, nd array, deepcopy of the mask in BGR.
+                maskBGR, nd array, deepcopy of the mask in BGR.
         """
+
+        # Gaussian Filter
+        mask = cv2.GaussianBlur(mask,(5,5),3)
         # Get the structuring element:
         maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(k, k))
         # Perform closing:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, maxKernel, None, None, iters, cv2.BORDER_REFLECT101)
-
+        # Threshold
+        mask[mask<th] = 0
+        mask[mask>=th] = 255
         # Visualize results
         if(verbose):
             cv2.namedWindow('Morphology mask', cv2.WINDOW_NORMAL)
@@ -123,17 +146,18 @@ class imageProcessor():
             cv2.waitKey(0)
 
         # Create a deep copy, convert it to BGR for results:
-        maskCopy = mask.copy()
-        maskCopy = cv2.cvtColor(maskCopy, cv2.COLOR_GRAY2BGR)
+        maskBGR = mask.copy()
+        maskBGR = cv2.cvtColor(maskBGR, cv2.COLOR_GRAY2BGR)
 
-        return mask, maskCopy
+        return mask, maskBGR
 
-    def findMarkersContour(self, mask):
+    def findMarkersContour(self, mask, minArea=100):
         """
         Function: findMarkersContour, to find the contours of the red markers.
         ---
         Parameters:
         @param: mask, nd array binary mask resulting from HSV masking, and Morpholigical closing.
+        @param: minArea, integer, the min size of the rectangle to be considered.
         ---
         @return: boundRectsSorted, list, bounding rectangles list sorted.
         """
@@ -162,9 +186,6 @@ class imageProcessor():
             # Estimate the bounding rect area:
             rectArea = rectWidth * rectHeight
 
-            # Set a min area threshold
-            minArea = 100
-
             # Filter blobs by area:
             if rectArea > minArea:
                 #Store the rect:
@@ -174,6 +195,31 @@ class imageProcessor():
         boundRectsSorted = sorted(boundRectsList, key=lambda x: x[1])
 
         return boundRectsSorted
+
+    def cropPlatform(self, boundRectsSorted, img, offset=5):
+        """
+        Function: cropPlatform, to crop the green platform.
+        ---
+        Parameters:
+        @param: boundRectsSorted, list of rectangles coordinates [(x, y, w, h)]
+        @param: img, nd array to be cropped.
+        ---
+        @return: boundRectsSorted, list, bounding rectangles list sorted.
+        """
+        areas = [(boundRectsSorted[i][2]) * (boundRectsSorted[i][3]) for i in range(len(boundRectsSorted))]
+        idx = areas.index(max(areas))
+        myRect = boundRectsSorted[idx]
+        
+        x0 = myRect[0] - offset
+        y0 = myRect[1] - offset
+        w  = myRect[2]
+        x1 = x0 + w   + 2*offset
+        h  = myRect[3]
+        y1 = y0 + h   + 2*offset
+
+        cropped = img[y0:y1, x0:x1]
+
+        return cropped
 
     def centerMarkersContour(self, maskCopy, boundRectsSorted, verbose=False):
         """
@@ -232,17 +278,17 @@ class imageProcessor():
 
             # Draw the border points:
             color = (0, 0, 255)
-            thickness = -1
+            thickness = 2
             centerX = rectX + borderPoint[0]
             centerY = rectY + borderPoint[1]
-            radius = 50
+            radius = 10
             cv2.circle(maskCopy, (centerX, centerY), radius, color, thickness)
 
             # Mark the circle
-            org = (centerX - 20, centerY + 20)
+            org = (centerX - 5, centerY + 5)
             font = cv2.FONT_HERSHEY_SIMPLEX
             cv2.putText(maskCopy, str(rectCounter), org, font,
-                    2, (0, 0, 0), 5, cv2.LINE_8)
+                    2, (0, 0, 0), 2, cv2.LINE_8)
 
             # Store the coordinates into list
             if rectCounter == 0:
@@ -288,7 +334,7 @@ class imageProcessor():
             bigRectHeight = self.workspaceCoords[3]
             # Draw the big rectangle:
             cv2.rectangle(maskCopy, (int(bigRectX), int(bigRectY)), (int(bigRectX + bigRectWidth),
-                                 int(bigRectY + bigRectHeight)), (0, 0, 255), 5)
+                                 int(bigRectY + bigRectHeight)), (0, 0, 255), 2)
 
             # Visualize results
             if(verbose):
@@ -424,7 +470,16 @@ class imageProcessor():
                     maxCount = targetPixelCount
                     # Get color name from dictionary:
                     cellColor = colorDictionary[m][2]
-                    self.cellsState[c]=colorDictionary[m][2][0]
+                    state     = self.cellsState[c]
+                    state[1]  = colorDictionary[m][2][0]
+                    self.cellsState[c] = state
+            
+
+            # Increase cellCounter:
+            cellCounter += 1
+
+        # Visualize results
+        if(verbose):
             # Get cell center, add an x offset:
             textX = int(cellCenters[cellCounter][0]) - 100
             textY = int(cellCenters[cellCounter][1])
@@ -432,101 +487,132 @@ class imageProcessor():
             # Draw text on cell's center:
             font = cv2.FONT_HERSHEY_SIMPLEX
             cv2.putText(centerPortion, cellColor, (textX, textY), font,
-                            2, (0, 0, 255), 5, cv2.LINE_8)
+                            1, (0, 0, 255), 1, cv2.LINE_8)
 
-            # Increase cellCounter:
-            cellCounter += 1
-
-        # Visualize results
-        if(verbose):
             cv2.namedWindow("centerPortion", cv2.WINDOW_NORMAL)
             cv2.imshow("centerPortion", centerPortion)
             cv2.waitKey(0)
 
-    def swapAnalyser(self, inputCopy, swapBorders):
+    def swapAnalyser(self, greenPlatform):
         """
-        Function: swapAnalyser, to recognize the color of each swap cell.
+        Function: swapAnalyser, to recognize the color of each swap cell,
+         and check the human stock.
         ---
         Parameters:
-        @param: inputCopy, nd array, deepcopy of the original image.
-        @param: swapBorders, list, swap border points list.
+        @param: greenPlatform, ndarray, the cropped green space.
+        ---
+        @return: None.
+        if(not greenPlatform.shape != greenShape):
+            greenPlatform = cv2.resize(greenPlatform, greenShape)
+        """
+        swap = {
+        's1' : greenPlatform[44:53, 163:173, :],
+        's2' : greenPlatform[53:62, 163:173, :]
+        }
+        for zone in swap: 
+            for color in ['green', 'yellow', 'blue']:
+                # print(swap[zone].shape)
+                mask = self.HSV_mask(swap[zone], color)
+                pixelsCount = np.count_nonzero(mask)
+                if(pixelsCount>50):
+                    self.swapState[zone] = color[0]
+
+        humanStock = {
+        'b_2x4': greenPlatform[36:44, 200:240, :],
+        'b_2x2': greenPlatform[56:64, 200:240, :],
+        'y_2x4': greenPlatform[75:83, 200:240, :],
+        'y_2x2': greenPlatform[94:102, 200:240, :]
+        }
+
+        for zone in humanStock: 
+            mask1 = self.HSV_mask(humanStock[zone], 'yellow')
+            mask2 = self.HSV_mask(humanStock[zone], 'blue')
+            mask  = cv2.bitwise_or(mask1, mask2) 
+            pixelsCount = np.count_nonzero(mask)
+            if(not pixelsCount>20):
+                self.humanStock[zone] = 0 
+
+    def stateAnalyzer(self, verbose=False):
+        """
+        Function: stateAnalyzer, to get the color state of the workspace.
+        ---
+        Parameters:
+        @param: verbose, boolean, to show the output of the function. 
         ---
         @return: None
         """
-        # HSV dictionary - color ranges and color name:
-        colorDictionary = {0: ([93, 64, 21], [121, 255, 255], "blue"  ),
-                           1: ([20, 64, 21], [30, 255,  255], "yellow"),
-                           2: ([55, 64, 21], [92, 255,  255], "green" )}
 
-        for idx, border in enumerate(swapBorders):
-             # Get current Cell:
-            currentCell = inputCopy[border[0]:border[2], border[1]:border[3]]
-            # Convert to HSV:
-            hsvCell = cv2.cvtColor(currentCell, cv2.COLOR_BGR2HSV)
+        # check if the image exists.
+        directory = self.imgPath+self.imgName
+        if(not os.path.isfile(directory)):
+            sys.exit("Error: Image doesn't exist!\n")
+        # read the image
+        img = cv2.imread(directory)
+        # check the image file validity
+        if(img is None):
+            sys.exit("Error: Image isn't valid!\n")
+        # remove fisheye lens destortion
+        undistorted = self.undistort(img)
+        # mask the green color
+        greenMask = self.HSV_mask(undistorted, 'green')
+        # greenMask, greenMaskBGR = self.Morhology(greenMask)
+        # find the large rectangles
+        greenRects  = self.findMarkersContour(greenMask, minArea=10000)
+        # crop the large rectangle
+        greenPlatform = self.cropPlatform(greenRects, undistorted)
+        # detect swap, and human stock
+        self.swapAnalyser(greenPlatform)
+        # mask the red color
+        redMask = self.HSV_mask(greenPlatform, 'red')
+        # Morpholoical closing
+        _, redMaskBGR = self.Morhology(redMask, th=240)
+        # find the red markers
+        redRects  = self.findMarkersContour(redMask, minArea=10)
+        # safe the coordinated of the markers
+        _ = self.centerMarkersContour(redMaskBGR, redRects)
+        # crop the workspace
+        workspace = self.cropWorkspace(greenPlatform, redMaskBGR)
+        # grid workspace
+        cellList, cellCenters = self.gridWorkspace(workspace)
+        # analyse workspace
+        self.cellAnalyser(workspace, cellList, cellCenters)
+        
+        # Visualize results
+        if(verbose):
 
-            # Some additional info:
-            (h, w) = currentCell.shape[:2]
-
-            # Process masks:
-            maxCount = 10
-            cellColor = "None"
-
-            for m in range(len(colorDictionary)):
-
-                # Get current lower and upper range values:
-                currentLowRange = np.array(colorDictionary[m][0])
-                currentUppRange = np.array(colorDictionary[m][1])
-
-                # Create the HSV mask
-                mask = cv2.inRange(hsvCell, currentLowRange, currentUppRange)
-
-                # Get max number of target pixels
-                targetPixelCount = cv2.countNonZero(mask)
-                if targetPixelCount > maxCount:
-                    maxCount = targetPixelCount
-                    # Get color name from dictionary:
-                    cellColor = colorDictionary[m][2]
-                    self.swapState[idx]=colorDictionary[m][2][0]
-
-    def stateAnalyzer(self):
-        """
-        Function: stateAnalyzer, to get the state of the workspace/swap.
-        ---
-        Parameters:
-        @param: None
-        ---
-        @return: None
-        """
-        mask, inputCopy       = self.HSV_mask()
-        mask, maskCopy        = self.Morhology(mask)
-        boundRectsSorted      = self.findMarkersContour(mask)
-        maskCopy              = self.centerMarkersContour(maskCopy, boundRectsSorted)
-        centerPortion         = self.cropWorkspace(inputCopy, maskCopy)
-        cellList, cellCenters = self.gridWorkspace(centerPortion)
-        self.cellAnalyser(centerPortion, cellList, cellCenters)
-        # These borderes to be modified later when fixing the camera.
-        swapBorders = [(0, 0, 1, 1), (1, 1, 2, 2), (2, 2, 3, 3), (3, 3, 4, 4)]
-        self.swapAnalyser(inputCopy, swapBorders)
+            cv2.namedWindow("centerPortion", cv2.WINDOW_NORMAL)
+            cv2.imshow("centerPortion", workspace)
+            cv2.waitKey(0)
 
     def handDetector(self, verbose=False):
         """
         Function: handDetector, to detect whether if ther is a hand in the workspace.
         ---
         Parameters:
-        @param: None
+        @param: verbose, boolean, to show the output of the function. 
         ---
         @return: boolean, True if hand is detected, and False otherwise.
         """
         # Read image
-        img = cv2.imread(self.imgPath + self.imgName)
+        directory = self.imgPath+self.imgName
+        if(not os.path.isfile(directory)):
+            sys.exit("Error: Image doesn't exist!\n")
+
+        img = cv2.imread(directory)
+        undistorted = self.undistort(img)
+        greenMask = self.HSV_mask(undistorted, 'green')
+        # greenMask, greenMaskBGR = self.Morhology(greenMask)
+        greenRects  = self.findMarkersContour(greenMask, minArea=10000)
+        greenPlatform = self.cropPlatform(greenRects, undistorted)
+
         #converting from gbr to hsv color space
-        img_HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        img_HSV = cv2.cvtColor(greenPlatform, cv2.COLOR_BGR2HSV)
         #skin color range for hsv color space 
         HSV_mask = cv2.inRange(img_HSV, (0, 15, 0), (17,170,255)) 
         HSV_mask = cv2.morphologyEx(HSV_mask, cv2.MORPH_OPEN, np.ones((3,3), np.uint8))
 
         #converting from gbr to YCbCr color space
-        img_YCrCb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+        img_YCrCb = cv2.cvtColor(greenPlatform, cv2.COLOR_BGR2YCrCb)
         #skin color range for hsv color space 
         YCrCb_mask = cv2.inRange(img_YCrCb, (0, 135, 85), (255,180,135)) 
         YCrCb_mask = cv2.morphologyEx(YCrCb_mask, cv2.MORPH_OPEN, np.ones((3,3), np.uint8))
@@ -562,7 +648,7 @@ class imageProcessor():
             rectArea = rectWidth * rectHeight
 
             # Set a min area threshold
-            minArea = 1200
+            minArea = 1000
 
             # Filter blobs by area:
             if rectArea > minArea:
@@ -585,10 +671,10 @@ class imageProcessor():
 
                 # Draw contour rect:
                 cv2.rectangle(global_mask, (int(rectX), int(rectY)), (int(rectX + rectWidth),
-                                         int(rectY + rectHeight)), (0, 255, 0), 5)     
+                                         int(rectY + rectHeight)), (0, 0, 255), 1)     
             # show the detection
             cv2.namedWindow("handMask", cv2.WINDOW_NORMAL)
-            cv2.imshow("handMask", global_mask)
+            cv2.imshow("handMask", cv2.bitwise_and(global_mask, greenPlatform))
             cv2.waitKey(0)
 
         if(len(boundRectsList)!=0):
@@ -596,7 +682,13 @@ class imageProcessor():
         return False
 #----------------------------------------------------------------------------------
 
-# proc = imageProcessor('F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/')
-# proc.handDetector(verbose=True)
+# path = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
+
+# proc = imageProcessor(imgPath = path, imgName='image1.jpg')
+
 # proc.stateAnalyzer()
-# print(proc.cellsState, proc.swapState)
+
+# print(proc.cellsState,'\n', proc.swapState, '\n', proc.humanStock)
+
+# res = proc.handDetector()
+# print('hand is present: ', res)
