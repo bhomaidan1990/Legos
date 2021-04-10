@@ -682,9 +682,11 @@ class imageProcessor():
         return False
 #----------------------------------------------------------------------------------
 
+# # Example:
+
 # path = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
 
-# proc = imageProcessor(imgPath = path, imgName='image1.jpg')
+# proc = imageProcessor(imgPath = path, imgName='sample_image.jpg')
 
 # proc.stateAnalyzer()
 
