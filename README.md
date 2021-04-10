@@ -1,92 +1,77 @@
-# Legos Domain and Problems
-
-> HDDL Legos Planning Domain and Problems.
-> 
-> @author: Belal HMEDAN
+# Legos
+> author: Belal HMEDAN
 
 ---
 
-## Domain
-> This data is old, Readme to be updated soon ...
----
+## 1. Perception Module
 
-### Types
+> This Module handles the vision part mainly.
 
 ---
 
-- Within this domain there are three **types**:
-    - **1. Location**: which refers to points in the air, or within the workspace.
-    - **2. Block**: refers to a 2x2 minimal Lego-duplo block.
-    - **3. Gripper**: refers to the robot gripper.
+### grabber script
+
+[This](grabber.py) script handles capturing image on the raspberryPi.
+
+### imageProcess script
+
+[This](imageProcessor.py) script has main class called `imageProcessor`.
+This class is responsible for:
+1. fisheye undistortion.
+2. masking the colors in the HSV space.
+3. Morphological closing.
+4. detecting and cropping the green platform, the workspace, swap zone, and the human stock.
+5. analysing the data in the image.
+6. hand detection using YCrCb, and HSV colorspace
+
+```
+@inproceedings{Kolkur2016/12,
+  title={Human Skin Detection Using RGB, HSV and YCbCr Color Models},
+  author={S. Kolkur and D. Kalbande and P. Shimpi and C. Bapat and J. Jatakia},
+  year={2016/12},
+  booktitle={Proceedings of the International Conference on Communication and Signal Processing 2016 (ICCASP 2016)},
+  pages={324-332},
+  issn={1951-6851},
+  isbn={978-94-6252-305-0},
+  url={https://doi.org/10.2991/iccasp-16.2017.51},
+  doi={https://doi.org/10.2991/iccasp-16.2017.51},
+  publisher={Atlantis Press}
+}
+```
+
+### yuVision script
+
+[This](yuVision.py) script has two classes:
+1. `communicator` class to communicate with the RaspberryPi Module, read image, writes control data, and runs scripts on the module.
+> Note that the ip address, and host name has to be adjusted according to the used Module.
+2. `visionHandler` class to call the image processor script to analyse the world, and detect whether if there is a hand or not!
+
+### problemHandler script
+
+[This](problemHandler.py) script has the class `problemHandler` to read the world state, write the state to the problem, and excute the plan task by task, and run the planner to get the plan as a list of actions.
 
 ---
 
-### Tasks
+## 2. Planning Module
+
+> This Module handles the planning part mainly.
 
 ---
 
-- The main **tasks** to be achieved are:
-    - 1. The task of **picking** a Lego:
-    `(:task pick
-  :parameters (?g - Gripper ?x - Block ?pos - Location))`
-    - 2. The task of **placing** a Lego:
-    `(:task place
-  :parameters (?g - Gripper ?x - Block ?pos - Location))`
-    - 3. The task of **shifting** stock from Robot stock to Operator stock:
-    `(:task shift
-  :parameters (?g_left - Gripper ?g_right - Gripper ?x - Block ?pos - Location))`
+in this context we have the [domain](domain.hddl), and the [problem](problem.hddl), note that the tasks, the actions, and some literals are commented, the `problemHandler` script manages commenting/uncommening some lines to change the problem dynamically according to the world state.
 
 ---
 
-### Methods
+## 3. GUI Module
+
+> This Module handles the GUI part mainly.
 
 ---
 
-- The **Methods** to decompose the tasks so far are:
-    - 1. Method to pick-up 2x2 blue block:
-        ```
-        (:method pick_2x2_Blue
-        :parameters (?g - Gripper ?x ?y - Block ?point_air ?pos ?pos_upper ?pos_lower - Location)
-        ...
-        )
-        ```
-    - 2. Method to pick-up 2x2 yellow block:
-        ```
-        (:method pick_2x2_Yellow
-        :parameters (?g - Gripper ?x ?y - Block ?point_air ?pos ?pos_upper ?pos_lower - Location)
-        ...
-        )
-        ```
 ---
 
-### Actions
+## 4. Action Module
 
----
-
-> 1. Empty Gripper Fingers Group of Actions
-- 1.1 `Open_gripper ?g`
-- 1.2 `Close_gripper ?g`
-- 1.3 `Hold_gripper ?block1 ?g ?pos`
-- 1.4 `Release_gripper ?block1 ?g`
-> 2. Empty Gripper Move Group of Actions
-- 2.1 `Move_closed_gripper ?g ?current_point ?destination_point`
-- 2.2 `Move_open_gripper_V ?g ?current_point  ?destination_point ?dest_upper ?dest_lower`
-- 2.3 `Move_open_gripper_H ?g ?current_point  ?destination_point ?dest_left ?dest_right`
-> 3. Gripper Rotation Group of Actions
-- 3.1 `Rotate_empty_gripper_H ?g`
-- 3.2 `Rotate_empty_gripper_V ?g`
-- TBC later ....
-
-> 4. Loaded Gripper Movement Group of Actions
-- 4.1 `take_2x2_gripper ?block1 ?g ?pos ?point_air`
-- TBC later ...
-
-> 5. Utility Group of Actions
-- 5.1 `fill_stock_2x2_blue ?block1 ?pos`
-- TBC later ...
-
----
-
-## Problem 01
+> This Module handles the RAPID part mainly.
 
 ---
