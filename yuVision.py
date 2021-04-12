@@ -120,10 +120,8 @@ class visionHandler():
         @return: None
         """
         # capture an image.
-        # self.com.camController(2)
-        # sleep(2)
         self.com.getImage(self.path)
-        # self.com.camController(1)
+
         # Process the image.
         proc = imageProcessor(self.path)
         proc.stateAnalyzer()
