@@ -566,6 +566,7 @@ class imageProcessor():
         redMask = self.HSV_mask(greenPlatform, 'red')
         # Morpholoical closing
         _, redMaskBGR = self.Morhology(redMask, th=240)
+        
         # find the red markers
         redRects  = self.findMarkersContour(redMask, minArea=10)
         # safe the coordinated of the markers
@@ -600,9 +601,17 @@ class imageProcessor():
 
         img = cv2.imread(directory)
         undistorted = self.undistort(img)
+
         greenMask = self.HSV_mask(undistorted, 'green')
+
+        greenMask = self.Morhology(greenMask,th=150, k=5, iters=10)[0]
+
+        # cv2.namedWindow("centerPortion", cv2.WINDOW_NORMAL)
+        # cv2.imshow("centerPortion", greenMask)
+        # cv2.waitKey(0)
+
         # greenMask, greenMaskBGR = self.Morhology(greenMask)
-        greenRects  = self.findMarkersContour(greenMask, minArea=10000)
+        greenRects  = self.findMarkersContour(greenMask, minArea=1000)
         greenPlatform = self.cropPlatform(greenRects, undistorted)
 
         #converting from gbr to hsv color space
@@ -681,16 +690,3 @@ class imageProcessor():
             return True
         return False
 #----------------------------------------------------------------------------------
-
-# # Example:
-
-# path = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
-
-# proc = imageProcessor(imgPath = path, imgName='sample_image.jpg')
-
-# proc.stateAnalyzer()
-
-# print(proc.cellsState,'\n', proc.swapState, '\n', proc.humanStock)
-
-# res = proc.handDetector()
-# print('hand is present: ', res)

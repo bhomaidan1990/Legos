@@ -9,7 +9,7 @@
 import paramiko
 import numpy as np
 import cv2
-from time import sleep
+from time import sleep, time
 from imageProcessor import imageProcessor
 
 #=====================
@@ -31,9 +31,10 @@ class communicator():
         self.password = password
         self.port     = port
 
-        self.camController(1)
-        self.commander('sudo ./vision/grabber.py')
-        sleep(.5)
+        self.ssh = paramiko.SSHClient()
+        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.ssh.connect(hostname=host, username=username, password=password)
+
 
     def getImage(self, localPath, remotePath='vision/image.jpg'):
         """
@@ -45,70 +46,18 @@ class communicator():
         ---
         @return: None.
         """
-        transport = paramiko.Transport((self.host, self.port))
-        transport.connect(username = self.username, password = self.password)
-        sftp = paramiko.SFTPClient.from_transport(transport)
-        
+        sftp = self.ssh.open_sftp()
+        # remove the image
+        ssh_stdin, ssh_stdout, ssh_stderr = self.ssh.exec_command('sudo rm {}'.format(remotePath))
+        channel = ssh_stdout.channel
+        status = channel.recv_exit_status()
+        # read a new image
+        ssh_stdin, ssh_stdout, ssh_stderr = self.ssh.exec_command('sudo raspistill -o {} --nopreview --exposure sports --timeout 1'.format(remotePath))
+        channel = ssh_stdout.channel
+        status = channel.recv_exit_status()
         sftp.get(remotePath, localPath+'image.jpg')
 
         sftp.close()
-        transport.close()
-        # print('Upload done.')
-
-    def camController(self, val, keyfilename=None):
-        """
-        Function: camController, to control the camera capture status on the Raspberry pi.
-        ---
-        Parameters:
-        @param: val, integer, 0 to exit the image capturing script, 2 to start capturing, 1 to stop capturing.
-        @param: keyfilename, string, ssh key file name.
-        ---
-        @return: None.
-        """
-        if not val in [0, 1, 2]:
-            print('please enter valid value: 0, 1, 2. any other values are not accepted!')
-        else:
-            if(keyfilename is None):
-                ssh = paramiko.SSHClient()
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.load_system_host_keys()
-                ssh.connect(hostname = self.host, username = self.username, password = self.password)
-            else:
-                k = paramiko.RSAKey.from_private_key_file(keyfilename) 
-                # k = paramiko.DSSKey.from_private_key_file(keyfilename)
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.load_system_host_keys()
-                ssh.connect(hostname=host, username=user, pkey=k)
-
-            ftp  = ssh.open_sftp()
-            file = ftp.file('vision/order', "w", -1)
-            file.write(str(val))
-
-            file.flush()
-            ftp.close()
-            ssh.close()
-
-    def commander(self, cmd_to_execute, keyfilename=None):
-        """
-        Function: commander, to send commands to the Raspberry pi.
-        ---
-        Parameters:
-        @param: cmd_to_execute, string, command to be excuted on the Raspberry pi.
-        @param: keyfilename, string, ssh key file name.
-        ---
-        @return: None.
-        """
-        if(keyfilename is None):
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(hostname = self.host, username = self.username, password = self.password)
-            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(cmd_to_execute)
-        else:
-            k = paramiko.RSAKey.from_private_key_file(keyfilename) 
-            # k = paramiko.DSSKey.from_private_key_file(keyfilename)
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(hostname=host, username=user, pkey=k)
-            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(cmd_to_execute)
 
 #======================
 # class visionHandler |
@@ -154,6 +103,12 @@ class visionHandler():
         's2'   : 'g',
         's3'   : 'g'
         }
+        self.humanStock = {
+        'b_2x2': 1,
+        'b_2x4': 1,
+        'y_2x2': 1,
+        'y_2x4': 1
+        }
         
     def captureWorld(self):
         """
@@ -165,12 +120,10 @@ class visionHandler():
         @return: None
         """
         # capture an image.
-        self.com.camController(1)
-        self.com.camController(2)
-        self.com.camController(1)
-
+        # self.com.camController(2)
+        # sleep(2)
         self.com.getImage(self.path)
-        self.com.camController(1)
+        # self.com.camController(1)
         # Process the image.
         proc = imageProcessor(self.path)
         proc.stateAnalyzer()
@@ -178,36 +131,47 @@ class visionHandler():
         for key in proc.cellsState:
             self.worldState[proc.cellsState[key][0]] = proc.cellsState[key][1]
         for key in proc.swapState:
-            self.worldState[proc.swapState[key][0]] = proc.swapState[key][1] 
+            self.worldState[key] = proc.swapState[key]
+        for key in self.humanStock:
+            self.humanStock[key] = proc.humanStock[key]
 
 
-    def captureHand(self):
+    def captureHand(self, verbose=False):
         """
         Function: captureHand, to capture an image of the workspace/swap and check the human hand presence.
         ---
         Parameters:
-        @param: None
+        @param: verbose, boolean, to print the output of the function. 
         ---
         @return: hand, bool True if there is human hand, False if there is no human hand.
         """
 
         # capture an image.
-        self.com.camController(2)
+        tic = time()
         self.com.getImage(self.path)
-        # Process the image.
+        toc = time()
+        if verbose:
+            print('time for getting the image is: ', round(toc-tic, 3))
         proc = imageProcessor(self.path)
-        # check if there is human hand.
-        while(proc.handDetector()):
+        detected = proc.handDetector()
+
+        if(detected):
             self.hand = True
             self.humanAction = True
+
+        # check if there is human hand.
+        while(detected):
+            # Process the image.
+            print('detected', detected)
+            tic = time()
             self.com.getImage(self.path)
-            sleep(1)
-        self.com.camController(1)
+            toc = time()
+            if verbose:
+                print('time for getting the image is: ', round(toc-tic, 3))
+                tic = toc
+            detected = proc.handDetector()
+
+        print('Detected', detected)
         self.hand = False
 
 #----------------------------------------------------------------------------------
-
-path = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
-
-vh = visionHandler(path=path)
-vh.captureWorld()
