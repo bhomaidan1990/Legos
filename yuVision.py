@@ -110,21 +110,20 @@ class visionHandler():
         'y_2x4': 1
         }
         
-    def captureWorld(self):
+    def captureWorld(self, verbose=False):
         """
         Function: captureWorld, to capture an image of the workspace/swap and analyse the locations.
         ---
         Parameters:
-        @param: None
+        @param: verbose, boolean, to print the output of the function. 
         ---
         @return: None
         """
         # capture an image.
         self.com.getImage(self.path)
-
         # Process the image.
         proc = imageProcessor(self.path)
-        proc.stateAnalyzer()
+        proc.stateAnalyzer(verbose=verbose)
         # write the colors to the worldState dictionary
         for key in proc.cellsState:
             self.worldState[proc.cellsState[key][0]] = proc.cellsState[key][1]
@@ -173,3 +172,13 @@ class visionHandler():
         self.hand = False
 
 #----------------------------------------------------------------------------------
+
+# mypath = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
+
+# vh = visionHandler(path=mypath)
+
+# vh.captureWorld()
+
+# # hand = vh.captureHand(verbose=True)
+
+# print(vh.worldState, '\n', vh.humanStock, '\n', vh.humanAction)

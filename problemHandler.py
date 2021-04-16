@@ -14,21 +14,26 @@
 
 import re
 import subprocess
+from time import time
+from yuVision import visionHandler
 
 #=======================
 # class problemHandler |
 #=======================
 class problemHandler():
 
-    def __init__(self, path):
+    def __init__(self, path, filename):
         """
         Class problemHandler: Reads, Modifies, and Writes problems.
         ---
         Parameters:
-        @param: path, string, the path to the problem(extension included .hddl/.pddl).
+        @param: path, string, the path to the problem.
+        @param: filename, string, the problem filename.
         """
         self.path = path
+        self.filename = filename
         self.plan = None
+        self.solution = True
         # 'problem_id : list[ tuple( tuple(line index of 1st group of tasks),
         # tuple(line index of 2nd group of tasks), block line index)]'
         self.tasksMap = {
@@ -63,10 +68,10 @@ class problemHandler():
         ((341, 342), (344, 345), 620),
         ((349, 351, 352), (349, 354, 355), 621),
         ((359, 361), (359, 363, 364), 614)],
-        'swap_W2x2': [((372, 373), (372, 373), 611)],
-        'swap_W2x4': [((377, 378, 379), (377, 378, 379), 619)],
-        'swap_B2x2': [((383, 384), (383, 384), 613)],
-        'swap_B2x4': [((388, 389, 390), (388, 389, 390), 623)]
+        'y_2x2': [((372, 373), (372, 373), 611)],
+        'y_2x4': [((377, 378, 379), (377, 378, 379), 619)],
+        'b_2x2': [((383, 384), (383, 384), 613)],
+        'b_2x4': [((388, 389, 390), (388, 389, 390), 623)]
         }
 
     def stateReader(self):
@@ -77,46 +82,47 @@ class problemHandler():
         Parameters:
         @param: None
         ---
-        @return: list of locations state empty/full
+        @return: None
         """
         locationMap = {
-        'ws_11': 'p_10_04',
-        'ws_12': 'p_10_05',
-        'ws_13': 'p_10_06',
-        'ws_14': 'p_10_07',
-        'ws_21': 'p_11_04',
-        'ws_22': 'p_11_05',
-        'ws_23': 'p_11_06',
-        'ws_24': 'p_11_07',
-        'ws_31': 'p_12_04',
-        'ws_32': 'p_12_05',
-        'ws_33': 'p_12_06',
-        'ws_34': 'p_12_07',
-        'ws_41': 'p_13_04',
-        'ws_42': 'p_13_05',
-        'ws_43': 'p_13_06',
-        'ws_44': 'p_13_07',
-        's1': 'p_07_05',
-        's2': 'p_07_06',
-        's3': 'p_07_07'
+        'ws_11': 419, #'p_13_07',
+        'ws_12': 420, #'p_12_07',
+        'ws_13': 421, #'p_11_07',
+        'ws_14': 422, #'p_10_07',
+        'ws_21': 423, #'p_13_06',
+        'ws_22': 424, #'p_12_06',
+        'ws_23': 425, #'p_11_06',
+        'ws_24': 426, #'p_10_06',
+        'ws_31': 427, #'p_13_05',
+        'ws_32': 428, #'p_12_05',
+        'ws_33': 429, #'p_11_05',
+        'ws_34': 430, #'p_10_05',
+        'ws_41': 431, #'p_13_04',
+        'ws_42': 432, #'p_12_04',
+        'ws_43': 433, #'p_11_04',
+        'ws_44': 434, #'p_10_04',
+        's1': 435, #'p_07_05',
+        's2': 436, #'p_07_06',
+        's3': 437, #'p_07_07'
         }
 
         colorMap = {
-        'g': '        ( empty_location )',
-        'b': '        ; ( empty_location )',
-        'y': '        ; ( empty_location )'
+        'g': False,
+        'b': True,
+        'y': True
         }
 
         vH = visionHandler(self.path)
         vH.captureWorld()
         
-        mappedState = []
+        mappedState = {}
         for location in vH.worldState:
-            mappedState.append(colorMap[vH.worldState[location][:-1]] + locationMap[location] + colorMap[vH.worldState[location]][-1])  
+            mappedState[locationMap[location]] = colorMap[vH.worldState[location]]
 
-        return mappedState
+        for lineIdx in mappedState:
+            self.stateWriter(lineIdx, comment=mappedState[lineIdx])
 
-    def stateWriter(self, lineIndex, filename, comment=False, shift=0):
+    def stateWriter(self, lineIndex, comment=False, shift=0):
         """
         Function: stateWriter, to write the workspace/stock locations into the problem file.
         ---
@@ -124,18 +130,18 @@ class problemHandler():
         @param: comment, boolean, True to comment the line, False to un-comment the line.
         @param: shift, integer, the shift in the line indicies.
         @param: lineIndex, integer, number of the line of which we want to update the state.
-        @param: filename, string, the problem filename to write locations state empty/full.
         ---
         @return: None.
         """
-        with open(self.path + filename, 'r') as fp:
+        with open(self.path + self.filename, 'r') as fp:
             state = fp.readlines()
-        with open(self.path + filename, 'w') as fp:
+        with open(self.path + self.filename, 'w') as fp:
             line = state[lineIndex+shift-1]
             if(not comment):
                 state[lineIndex+shift-1] = re.sub(" ; ", " ", line)# line + '\n'
             else:
-                state[lineIndex+shift-1] = re.sub("\(", "; (", line, 1)# line + '\n'
+                if not re.findall("^;", line.strip()):
+                    state[lineIndex+shift-1] = re.sub("\(", "; (", line, 1)# line + '\n'
 
             fp.writelines(state)
 
@@ -143,8 +149,8 @@ class problemHandler():
         libraryPath='F:/Grenoble/Semester_4/PDDL/pddl4j-devel/build/libs/pddl4j-3.8.3.jar',
         planner = 'fr.uga.pddl4j.planners.htn.stn.tfd.TFDPlanner',
         Memory = ['-Xms12288m' ,'-Xmx12288m'],
-        domainPath  = 'new_domain.pddl',
-        problemPath = 'problem_main.pddl',
+        domainPath  = 'new_domain.hddl',
+        problemPath = 'problem_main.hddl',
         save=False
         ):
         """
@@ -164,8 +170,14 @@ class problemHandler():
         result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
         output = result.stdout.decode('utf-8')[1:]
         myresult = output.split('\n')[6:]
-
-        if(myresult[0]==''):
+        # print('res: ', myresult)
+        if(len(myresult)==0):
+            # print('No Plan')
+            self.plan = None
+        elif(myresult[2]=='no plan found\r'):
+            # print('No Plan')
+            self.plan = None
+        elif(int(float(myresult[-6][23:-1]))==0):
             # print('No Plan')
             self.plan = None
         else:
@@ -178,67 +190,154 @@ class problemHandler():
             with open(self.path + 'plan.log', 'w') as fp:
                 fp.writelines(output)
 
-    def taskActivator(self, filename, problem):
+    def taskActivator(self, problem):
         """
         Function: taskActivator, to activate a group of actions that have a plan.
         ---
         Parameters:
-        @param: filename, string, the problem filename.
         @param: problem, string, problem ID: [id_18, id_25, id_101, 
-                 swap_W2x2, swap_W2x4, swap_B2x2, swap_W2x4]
+                 y_2x2, y_2x4, b_2x2, b_2x4]
         ---
         @return: None.
         """
+        vh = visionHandler(self.path)
+        vh.captureWorld(verbose=False)
+        vh.captureHand()
+
         taskList = self.tasksMap[problem]
-        solution = False
+
+        # Fill Human stock if empty
+        if(problem[1:-1] != '_2x' and self.solution):
+            for key in vh.humanStock:
+                if (vh.humanStock[key] == 0):
+                    print('Filling Human stock: ', key)
+                    self.taskActivator(key)
 
         for taskGroup in taskList:
             #((69, 71), (69, 73, 74) , 609)
 
             for lineIndex in taskGroup[0]:
                 # Un-Comment these lines.
-                self.stateWriter(lineIndex, filename)
+                self.stateWriter(lineIndex)
             # Test if there is a solution for the temp copy.
-            self.solver(problem=self.path+filename)
+            self.solver()
             # if there is a solution: 
             if(self.plan is not None):
-                #   1. solution = True
-                solution=True
-                #   2. remove the taskGroup from taskList.
+                #   1. remove the taskGroup from taskList.
                 taskList = taskList.remove(taskGroup)
-                #   3. write the taskList to the tasksMap.
+                #   2. write the taskList to the tasksMap.
                 taskList = self.tasksMap[problem]
-                #   4. Un-comment the attached line.
-                self.stateWriter(taskGroup[2], filename)
-            #   5. send the taskGroup to the Robot to be done.
-                #   6. comment the taskGroup lines again
+                #   3. Un-comment the attached line.
+                self.stateWriter(taskGroup[2])
+            #   4. send the taskGroup to the Robot to be done.
+                #   5. comment the taskGroup lines again
                 for lineIndex in taskGroup[0]:
                     # comment these lines.
-                    self.stateWriter(lineIndex, filename, comment=True)
-                #   7. break the taskList loop.
+                    self.stateWriter(lineIndex, comment=True)
+
+                self.stateWriter(taskGroup[2])
+                self.solution = True
+                #   6. break the taskList loop.
                 return
+            else:
+                for lineIndex in taskGroup[0]:
+                    # comment these lines.
+                    self.stateWriter(lineIndex, comment=True)
 
             for lineIndex in taskGroup[1]:
                 # Un-Comment these lines.
-                self.stateWriter(lineIndex, filename)
+                self.stateWriter(lineIndex)
             # Test if there is a solution for the temp copy.
+            self.solver()
             # if there is a solution: 
-            #   1. solution = True  
-            #   2. remove the taskGroup from taskList. 
-            #   3. write the taskList to the tasksMap.
-            #   4. Un-comment the attached line.
-            #   5. send the taskGroup to the Robot to be done.
-            #   6. comment the taskGroup lines again
-            for lineIndex in taskGroup[1]:
-                # Comment these lines.
-                self.stateWriter(lineIndex, filename, comment=True)
-            #   7. break the taskList loop.
-                pass
-        if (not solution):
-            # There is no solution for the plan, ask the user to do the rest.
-            pass
-#--------------------------------------------------------------
-path = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
-ph = problemHandler(path)
+            if(self.plan is not None):
+                #   1. remove the taskGroup from taskList.
+                taskList = taskList.remove(taskGroup)
+                #   2. write the taskList to the tasksMap.
+                taskList = self.tasksMap[problem]
+                #   3. Un-comment the attached line.
+                self.stateWriter(taskGroup[2])
+            #   4. send the taskGroup to the Robot to be done.
+                #   5. comment the taskGroup lines again
+                for lineIndex in taskGroup[1]:
+                    # comment these lines.
+                    self.stateWriter(lineIndex, comment=True)
 
-ph.solver()
+                self.stateWriter(taskGroup[2])
+                self.solution = True
+                #   6. break the taskList loop.
+                return
+
+            else:
+                for lineIndex in taskGroup[1]:
+                    # comment these lines.
+                    self.stateWriter(lineIndex, comment=True)
+
+        if (self.plan is None):
+            # There is no solution for the plan, ask the user to do the rest(GUI).
+            print('No Plan')
+            self.solution = False
+            pass
+
+    def reset_problem(self):
+        """
+        Function: reset_problem, to reset the problem.
+        ---
+        Parameters:
+        @param: None
+        ---
+        @return: None.
+        """
+        for lineIndex in list(range(417,438)):
+            # comment these lines.
+            self.stateWriter(lineIndex)
+
+        for lineIndex in list(range(608,624)):
+            # comment these lines.
+            self.stateWriter(lineIndex, comment=True)
+
+#--------------------------------------------------------------
+
+mypath = './'
+
+ph = problemHandler(path = mypath, filename='problem_main.hddl')
+tic = time()
+ph.stateReader()
+toc = time()
+print("time for perception is: ", round(toc-tic, 3))
+tic = toc
+ph.taskActivator(problem='id_18')
+while(ph.plan is not None):
+    ph.taskActivator(problem='id_18')
+toc = time()
+print("time for planning is: ", round(toc-tic, 3))
+
+ph.reset_problem()
+
+# loop as long as there is a solution
+solution = True
+while(solution):
+    pass
+    # 1. do a task.
+
+    # 2. ensure that the robot has finished the execution.
+
+    # 3. delay for 3 seconds(more or less), then hand detection.
+
+    # 4. capture the world state
+
+    # 5. write the world state to the problem
+
+    # 6. call the solver to see if there is a solution go back to 1.
+    #        otherwise go to 7.
+
+    # 7- show on the GUI that the user has to do the rest
+
+    # 8. check human stock and call the solver to see if there is a solution got to 9.
+    #       otherwise do nothing!
+
+    # 9- fill empty human stock, then go back to 1.
+
+    # 10. check the whole ArUco is done, then:
+
+    solution = False

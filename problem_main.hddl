@@ -7,20 +7,20 @@
         ; Reference Points
         p_air_left - Point_Air
         ; Workspace Points, and Neighbouring points.
-        ;  ===== g_right              Right
-        ; ||
-        ; YuMi  p_yy_xx        up    p_yy_xx     down
-        ; ||
-        ;  ===== g_left               Left
-                                p_06_06 p_06_07
-                        p_07_05 p_07_06 p_07_07 p_07_08
-                                p_08_06 p_08_07
-                p_09_04 p_09_05 p_09_06 p_09_07 
-        p_10_03 p_10_04 p_10_05 p_10_06 p_10_07 p_10_08 
-        p_11_03 p_11_04 p_11_05 p_11_06 p_11_07 p_11_08 
-        p_12_03 p_12_04 p_12_05 p_12_06 p_12_07 p_12_08 
-        p_13_03 p_13_04 p_13_05 p_13_06 p_13_07 p_13_08 
-                p_14_04 p_14_05 p_14_06 p_14_07         - Point_Workspace
+        ;          Right                                 g_right ====== 
+        ;                                                            ||
+        ;   up    p_yy_xx  down                                    YuMi
+        ;                                                            ||
+        ;           Left                                  g_left ====== 
+                p_06_07 p_06_06
+        p_07_08 p_07_07 p_07_06 p_07_05
+                p_08_07 p_08_06
+                p_09_07 p_09_06 p_09_05 p_09_04
+        p_10_08 p_10_07 p_10_06 p_10_05 p_10_04 p_10_03
+        p_11_08 p_11_07 p_11_06 p_11_05 p_11_04 p_11_03
+        p_12_08 p_12_07 p_12_06 p_12_05 p_12_04 p_12_03
+        p_13_08 p_13_07 p_13_06 p_13_05 p_13_04 p_13_03
+                p_14_07 p_14_06 p_14_05 p_14_04        - Point_Workspace
 
         ; -----
         ; | y |
@@ -392,6 +392,7 @@
     )
 
     (:init
+
         ;--------------------
         ; Gripper Relations |
         ;--------------------
@@ -415,22 +416,22 @@
         ;------------------
         ;Workspace
         
-        ( empty_location p_10_04)
-        ( empty_location p_10_05)
-        ( empty_location p_10_06)
-        ( empty_location p_10_07)
-        ( empty_location p_11_04)
-        ( empty_location p_11_05)
-        ( empty_location p_11_06)
-        ( empty_location p_11_07)
-        ( empty_location p_12_04)
-        ( empty_location p_12_05)
-        ( empty_location p_12_06)
-        ( empty_location p_12_07)
-        ( empty_location p_13_04)
-        ( empty_location p_13_05)
-        ( empty_location p_13_06)
         ( empty_location p_13_07)
+        ( empty_location p_12_07)
+        ( empty_location p_11_07)
+        ( empty_location p_10_07)
+        ( empty_location p_13_06)
+        ( empty_location p_12_06)
+        ( empty_location p_11_06)
+        ( empty_location p_10_06)
+        ( empty_location p_13_05)
+        ( empty_location p_12_05)
+        ( empty_location p_11_05)
+        ( empty_location p_10_05)
+        ( empty_location p_13_04)
+        ( empty_location p_12_04)
+        ( empty_location p_11_04)
+        ( empty_location p_10_04)      
         ( empty_location p_07_05)
         ( empty_location p_07_06)
         ( empty_location p_07_07)
@@ -599,6 +600,7 @@
         ( right p_07_06 p_08_06 )
         ( right p_06_07 p_07_07 )
         ( right p_07_07 p_08_07 )
+
 
         ;-----------
         ; Attached |
