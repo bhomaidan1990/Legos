@@ -9,10 +9,6 @@
 
 ---
 
-### grabber script
-
-[This](grabber.py) script handles capturing image on the raspberryPi.
-
 ### imageProcess script
 
 [This](imageProcessor.py) script has main class called `imageProcessor`.
