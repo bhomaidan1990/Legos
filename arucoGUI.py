@@ -272,7 +272,7 @@ class Ui_MainWindow(object):
         self.Aruco_selector.addItem('id_18')
         self.Aruco_selector.addItem('id_25')
         self.Aruco_selector.addItem('id_101')
-        self.Aruco_selector.activated[str].connect(self.messenger)
+        # self.Aruco_selector.activated[str].connect(self.messenger)
         # Exit Push Butoon
         self.PB_Exit = QPushButton(self.centralwidget)
         self.PB_Exit.setGeometry(QRect(90, 730, 131, 41))
@@ -421,6 +421,10 @@ class Ui_MainWindow(object):
     def messenger(self, text):
     	self.LB_Messenger.setText(text)
 
+    def getArUcoID(self):
+        text = str(self.Aruco_selector.currentText())
+        return text
+        
     def close(selft):
         QCoreApplication.quit()
 
