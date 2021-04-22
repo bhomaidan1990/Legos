@@ -1,9 +1,13 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
+'''
+| author: Belal HMEDAN,
+| LIG Lab/ Marven Team,
+| France, 2021.
+'''
 import sys
 import re
-
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import (QWidget, QApplication, QMainWindow,
 	QDesktopWidget, QLabel, QComboBox, QPushButton, QSizePolicy, QGroupBox,
@@ -17,8 +21,16 @@ from PyQt5.QtGui import QPixmap, QPalette, QColor
 #======================
 class AnimatedLabel(QLabel):
     def __init__(self, parent=None):
+        """
+        Class AnimatedLabel: turns QLabel into animated one with 
+          Foreground/Background blinking colors.
+        ---
+        Parameters:
+        @param: path, string, the path to the problem.
+        @param: filename, string, the problem filename.
+        """
         QLabel.__init__(self, parent)
-
+        # color mapping
         self.colorDict = {
                 "b": QColor(0, 0, 255),
                 "y": QColor(255, 255, 0),
@@ -31,7 +43,14 @@ class AnimatedLabel(QLabel):
         self.color_anim = QPropertyAnimation(self, b'zcolor')
 
     def blink(self, mode):
-        
+        """
+        Function: blink, define the foreground backgound color for blinking.
+        ---
+        Parameters:
+        @param: mode, string, any of the set: ['b', 'y', 'g', 'bg', 'yg', 'bp', 'yp']
+        ---
+        @return: None
+        """
         self.color_anim.stop()
 
         if len(mode)==1:
@@ -52,14 +71,38 @@ class AnimatedLabel(QLabel):
         self.color_anim.start()
 
     def parseStyleSheet(self):
+        """
+        Function: parseStyleSheet, lists the styleSheet parameters.
+        ---
+        Parameters:
+        @param: None
+        ---
+        @return: sts, list, list of the styleSheet Parameters.
+        """
         ss = self.styleSheet()
         sts = [s.strip() for s in ss.split(';') if len(s.strip())]
         return sts
 
     def getBackColor(self):
+        """
+        Function: getBackColor, returns the styleSheet backgound color.
+        ---
+        Parameters:
+        @param: None
+        ---
+        @return: color, QColor, color of the styleSheet background.
+        """
         return self.palette().color(self.pal_ele)
 
     def setBackColor(self, color):
+        """
+        Function: setBackColor, sets the styleSheet backgound color.
+        ---
+        Parameters:
+        @param: color, QColor, the color to be assigned to the background.
+        ---
+        @return: None
+        """
         sss = self.parseStyleSheet()
         bg_new = 'background-color: rgba(%d,%d,%d,%d);' % (color.red(), color.green(), color.blue(), color.alpha())
 
@@ -79,7 +122,22 @@ class AnimatedLabel(QLabel):
 # class Ui_MainWindow |
 #======================
 class Ui_MainWindow(object):
+    """
+    Class Ui_MainWindow:to create the GUI Main Window.
+    ---
+    Parameters:
+    @param: path, string, the path to the problem.
+    @param: filename, string, the problem filename.
+    """
     def setupUi(self, MainWindow):
+        """
+        Function: setupUi, sets up the GUI components.
+        ---
+        Parameters:
+        @param: MainWindow, QMainWindow object.
+        ---
+        @return: None
+        """
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1200, 800)
         #------------------------------------------------------
@@ -337,6 +395,14 @@ class Ui_MainWindow(object):
         #==================================================================
         #==================================================================
     def retranslateUi(self, MainWindow):
+        """
+        Function: retranslateUi, to translate the parameters to the GUI.
+        ---
+        Parameters:
+        @param: MainWindow, QMainWindow object.
+        ---
+        @return: None
+        """
         _translate = QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "ArUco_Tasks"))
         self.LB_Messenger.setText(_translate("MainWindow", "Messenger"))
@@ -370,62 +436,103 @@ class Ui_MainWindow(object):
         self.PB_Exit.setText(_translate("MainWindow", "Exit"))
 
     def blinker(self, ID, mode):
-    	workspaceDict = {
-    	1: self.LB_01,
-    	2: self.LB_02,
-    	3: self.LB_03,
-    	4: self.LB_04,
-    	5: self.LB_05,
-    	6: self.LB_06,
-    	7: self.LB_07,
-    	8: self.LB_08,
-    	9: self.LB_09,
-    	10: self.LB_10,
-    	11: self.LB_11,
-    	12: self.LB_12,
-    	13: self.LB_13,
-    	14: self.LB_14,
-    	15: self.LB_15,
-    	16: self.LB_16,
+        """
+        Function: blinker, to make the labels blink/not blink with specific colors.
+        ---
+        Parameters:
+        @param: ID, string, the id of the Label to change its colors.
+        @param: mode, string, any of the set: ['b', 'y', 'g', 'bg', 'yg', 'bp', 'yp']
+        ---
+        @return: None
+        """
+        workspaceDict = {
+    	'1': self.LB_01,
+    	'2': self.LB_02,
+    	'3': self.LB_03,
+    	'4': self.LB_04,
+    	'5': self.LB_05,
+    	'6': self.LB_06,
+    	'7': self.LB_07,
+    	'8': self.LB_08,
+    	'9': self.LB_09,
+    	'10': self.LB_10,
+    	'11': self.LB_11,
+    	'12': self.LB_12,
+    	'13': self.LB_13,
+    	'14': self.LB_14,
+    	'15': self.LB_15,
+    	'16': self.LB_16,
     	's1': self.LB_s1,
     	's2': self.LB_s2,
     	's3': self.LB_s3
     	}
-    	workspaceDict[ID].blink(mode)
+        workspaceDict[ID].blink(mode)
 
     def wrong(self, ID):
-    	workspaceDict = {
-    	1: self.LB_01,
-    	2: self.LB_02,
-    	3: self.LB_03,
-    	4: self.LB_04,
-    	5: self.LB_05,
-    	6: self.LB_06,
-    	7: self.LB_07,
-    	8: self.LB_08,
-    	9: self.LB_09,
-    	10: self.LB_10,
-    	11: self.LB_11,
-    	12: self.LB_12,
-    	13: self.LB_13,
-    	14: self.LB_14,
-    	15: self.LB_15,
-    	16: self.LB_16,
+        """
+        Function: wrong, to show wrong signal on the label.
+        ---
+        Parameters:
+        @param: ID, string, the id of the Label to change its colors.
+        ---
+        @return: None
+        """
+        workspaceDict = {
+    	'1': self.LB_01,
+        '2': self.LB_02,
+        '3': self.LB_03,
+        '4': self.LB_04,
+        '5': self.LB_05,
+        '6': self.LB_06,
+        '7': self.LB_07,
+        '8': self.LB_08,
+        '9': self.LB_09,
+        '10': self.LB_10,
+        '11': self.LB_11,
+        '12': self.LB_12,
+        '13': self.LB_13,
+        '14': self.LB_14,
+        '15': self.LB_15,
+        '16': self.LB_16
     	}
-    	wrongPixmap = QPixmap('wrong.png')
-    	w = workspaceDict[ID].width()
-    	h = workspaceDict[ID].height()
-    	workspaceDict[ID].setPixmap(wrongPixmap.scaled(w,h,Qt.KeepAspectRatio))
-    	workspaceDict[ID].setScaledContents(True)
+        wrongPixmap = QPixmap('wrong.png')
+        w = workspaceDict[ID].width()
+        h = workspaceDict[ID].height()
+        workspaceDict[ID].setPixmap(wrongPixmap.scaled(w,h,Qt.KeepAspectRatio))
+        workspaceDict[ID].setScaledContents(True)
 
     def messenger(self, text):
-    	self.LB_Messenger.setText(text)
+        """
+        Function: messenger, to make the labels blink/not blink with specific colors.
+        ---
+        Parameters:
+        @param: text, string, the text to be shown on the Messenger Label.
+        ---
+        @return: None
+        """
+        self.LB_Messenger.setText(text)
 
     def getArUcoID(self):
+        """
+        Function: getArUcoID, to get ArUco ID.
+        ---
+        Parameters:
+        @param: None
+        ---
+        @return: text, string, ArUco ID.
+        """
         text = str(self.Aruco_selector.currentText())
         return text
-        
+
     def close(selft):
+        """
+        Function: close, to close the GUI.
+        ---
+        Parameters:
+        @param: None
+        ---
+        @return: None
+        """
         QCoreApplication.quit()
 
 #=================
