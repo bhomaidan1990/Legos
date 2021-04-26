@@ -6,11 +6,6 @@
 | LIG Lab/ Marven Team,
 | France, 2021.
 '''
-#-------------#
-#--  Usage ---#
-#-------------#
-# ./sth params
-#--------------------------------------------------------------
 
 import re
 import subprocess
@@ -146,11 +141,11 @@ class problemHandler():
             fp.writelines(state)
 
     def solver(self, 
-        libraryPath='F:/Grenoble/Semester_4/PDDL/pddl4j-devel/build/libs/pddl4j-3.8.3.jar',
+        libraryPath='G:/Grenoble/Semester_4/PDDL/pddl4j-devel/build/libs/pddl4j-3.8.3.jar',
         planner = 'fr.uga.pddl4j.planners.htn.stn.tfd.TFDPlanner',
         Memory = ['-Xms12288m' ,'-Xmx12288m'],
-        domainPath  = 'new_domain.hddl',
-        problemPath = 'problem_main.hddl',
+        domainPath  = 'new_domain.pddl',
+        problemPath = 'problem_main.pddl',
         save=False
         ):
         """
@@ -186,9 +181,9 @@ class problemHandler():
             for Action in self.plan:
                 print(Action) # No plan: myresult[-8], plan cost: int(float(myresult[-6][23:-1]))
             
-        if(save):
-            with open(self.path + 'plan.log', 'w') as fp:
-                fp.writelines(output)
+        if(save and self.plan is not None):
+            with open(self.path + 'tmp/plan_{}.log'.format(time()), 'w') as fp:
+                fp.writelines(self.plan)
 
     def taskActivator(self, problem):
         """
@@ -298,9 +293,9 @@ class problemHandler():
 
 #--------------------------------------------------------------
 
-mypath = './'
+mypath = 'G:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
 
-ph = problemHandler(path = mypath, filename='problem_main.hddl')
+ph = problemHandler(path = mypath, filename='problem_main.pddl')
 tic = time()
 ph.stateReader()
 toc = time()
@@ -315,29 +310,31 @@ print("time for planning is: ", round(toc-tic, 3))
 ph.reset_problem()
 
 # loop as long as there is a solution
-solution = True
-while(solution):
-    pass
-    # 1. do a task.
+# solution = True
+# while(solution):
+#     pass
+#     # 0. capture the world state
+#     ph.stateReader()
+#     # 1. do a task.
 
-    # 2. ensure that the robot has finished the execution.
+#     # 2. ensure that the robot has finished the execution.
 
-    # 3. delay for 3 seconds(more or less), then hand detection.
+#     # 3. delay for 3 seconds(more or less), then hand detection.
 
-    # 4. capture the world state
+#     # 4. capture the world state
 
-    # 5. write the world state to the problem
+#     # 5. write the world state to the problem
 
-    # 6. call the solver to see if there is a solution go back to 1.
-    #        otherwise go to 7.
+#     # 6. call the solver to see if there is a solution go back to 1.
+#     #        otherwise go to 7.
 
-    # 7- show on the GUI that the user has to do the rest
+#     # 7- show on the GUI that the user has to do the rest
 
-    # 8. check human stock and call the solver to see if there is a solution got to 9.
-    #       otherwise do nothing!
+#     # 8. check human stock and call the solver to see if there is a solution got to 9.
+#     #       otherwise do nothing!
 
-    # 9- fill empty human stock, then go back to 1.
+#     # 9- fill empty human stock, then go back to 1.
 
-    # 10. check the whole ArUco is done, then:
+#     # 10. check the whole ArUco is done, then:
 
-    solution = False
+#     solution = False
