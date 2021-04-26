@@ -55,7 +55,7 @@ class communicator():
         ssh_stdin, ssh_stdout, ssh_stderr = self.ssh.exec_command('sudo raspistill -o {} --nopreview --exposure sports --timeout 1'.format(remotePath))
         channel = ssh_stdout.channel
         status = channel.recv_exit_status()
-        sftp.get(remotePath, localPath+'image.jpg')
+        sftp.get(remotePath, (localPath+'image.jpg'))
 
         sftp.close()
 
@@ -74,7 +74,7 @@ class visionHandler():
         """
         self.pi_id = pi_id
         self.path = path
-        self.com = communicator('192.168.0.{}0'.format(pi_id), 'pi{}'.format(pi_id), '000000')
+        self.com = communicator('192.168.125.{}0'.format(pi_id), 'pi{}'.format(pi_id), '000000')
         self.humanAction = False
         self.hand = False
         self.worldState = {
@@ -132,7 +132,6 @@ class visionHandler():
         for key in self.humanStock:
             self.humanStock[key] = proc.humanStock[key]
 
-
     def captureHand(self, verbose=False):
         """
         Function: captureHand, to capture an image of the workspace/swap and check the human hand presence.
@@ -159,7 +158,7 @@ class visionHandler():
         # check if there is human hand.
         while(detected):
             # Process the image.
-            print('detected', detected)
+            print('detected status', detected)
             tic = time()
             self.com.getImage(self.path)
             toc = time()
@@ -168,17 +167,17 @@ class visionHandler():
                 tic = toc
             detected = proc.handDetector()
 
-        print('Detected', detected)
+        print('Detected Hand status: ', detected)
         self.hand = False
 
 #----------------------------------------------------------------------------------
 
-# mypath = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
+# mypath = 'G:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
 
 # vh = visionHandler(path=mypath)
 
 # vh.captureWorld()
 
-# # hand = vh.captureHand(verbose=True)
-
+# vh.captureHand(verbose=True)
+# print('out', vh.hand)
 # print(vh.worldState, '\n', vh.humanStock, '\n', vh.humanAction)

@@ -114,7 +114,7 @@ class imageProcessor():
             mask1 = cv2.inRange(hsv_img,(0,HSV[2],HSV[4]), (HSV[1],HSV[3],HSV[5]))
             mask2 = cv2.inRange(hsv_img, (HSV[0],HSV[2],HSV[4]), (180,HSV[3],HSV[5]))
             mask  = cv2.bitwise_or(mask1, mask2)
-
+            mask  = cv2.medianBlur(mask, 5)                                # <---------#
         return mask
 
     def Morhology(self, mask, th=50, k=5, iters=10, verbose=False):
@@ -728,9 +728,9 @@ class imageProcessor():
         return False
 #----------------------------------------------------------------------------------
 
-# mypath = 'F:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
+# mypath = 'G:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
 
-# proc = imageProcessor(imgPath=mypath, imgName='imageH.jpg')
+# proc = imageProcessor(imgPath=mypath, imgName='im.jpg')
 
 # proc.stateAnalyzer(verbose=True)
 
