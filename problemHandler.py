@@ -1,34 +1,41 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
-
 '''
-| author: Belal HMEDAN,
-| LIG Lab/ Marven Team,
+| author:
+| Belal HMEDAN, 
+| LIG lab/ Marven Team, 
 | France, 2021.
+| Planning script.
 '''
-
+import sys
 import re
 import subprocess
-from time import time
+from time import sleep, time
 from yuVision import visionHandler
-
+from yuAction import actionHandler
+from arucoGUI import Ui_MainWindow
+from PyQt5.QtWidgets import QApplication, QMainWindow
 #=======================
 # class problemHandler |
 #=======================
 class problemHandler():
-
-    def __init__(self, path, filename):
+    def __init__(self, path, filename, MainWindow):
         """
         Class problemHandler: Reads, Modifies, and Writes problems.
         ---
         Parameters:
         @param: path, string, the path to the problem.
         @param: filename, string, the problem filename.
+        @param: MainWindow, QMainWindow.
         """
         self.path = path
         self.filename = filename
         self.plan = None
         self.solution = True
+        self.NoSolution = False
+        self.solved = False
+        self.vh = visionHandler(path)
+        self.ui = Ui_MainWindow(MainWindow)
         # 'problem_id : list[ tuple( tuple(line index of 1st group of tasks),
         # tuple(line index of 2nd group of tasks), block line index)]'
         self.tasksMap = {
@@ -80,25 +87,28 @@ class problemHandler():
         @return: None
         """
         locationMap = {
-        'ws_11': 419, #'p_13_07',
-        'ws_12': 420, #'p_12_07',
-        'ws_13': 421, #'p_11_07',
-        'ws_14': 422, #'p_10_07',
-        'ws_21': 423, #'p_13_06',
-        'ws_22': 424, #'p_12_06',
-        'ws_23': 425, #'p_11_06',
-        'ws_24': 426, #'p_10_06',
-        'ws_31': 427, #'p_13_05',
-        'ws_32': 428, #'p_12_05',
-        'ws_33': 429, #'p_11_05',
-        'ws_34': 430, #'p_10_05',
-        'ws_41': 431, #'p_13_04',
-        'ws_42': 432, #'p_12_04',
-        'ws_43': 433, #'p_11_04',
-        'ws_44': 434, #'p_10_04',
-        's1': 435, #'p_07_05',
-        's2': 436, #'p_07_06',
-        's3': 437, #'p_07_07'
+        'p_10_04': 434,
+        'p_11_04': 433,
+        'p_12_04': 432,
+        'p_13_04': 431,
+        #
+        'p_10_05': 430,
+        'p_11_05': 429,
+        'p_12_05': 428,
+        'p_13_05': 427,
+        #
+        'p_10_06': 426,
+        'p_11_06': 425,
+        'p_12_06': 424,
+        'p_13_06': 423,
+        #
+        'p_10_07': 422,
+        'p_11_07': 421,
+        'p_12_07': 420,
+        'p_13_07': 419,
+        #       
+        'p_07_06': 436,
+        'p_07_07': 437
         }
 
         colorMap = {
@@ -107,12 +117,18 @@ class problemHandler():
         'y': True
         }
 
-        vH = visionHandler(self.path)
-        vH.captureWorld()
-        
+        self.vh.captureWorld()
+
+        if len(self.vh.errors) > 0:
+            for point in self.vh.errors:
+                self.ui.wrong(point)
+
+        if self.vh.message != "":
+            self.ui.messenger(self.vh.message)
+
         mappedState = {}
-        for location in vH.worldState:
-            mappedState[locationMap[location]] = colorMap[vH.worldState[location]]
+        for location in self.vh.worldState:
+            mappedState[locationMap[location]] = colorMap[self.vh.worldState[location]]
 
         for lineIdx in mappedState:
             self.stateWriter(lineIdx, comment=mappedState[lineIdx])
@@ -185,7 +201,7 @@ class problemHandler():
             with open(self.path + 'tmp/plan_{}.log'.format(time()), 'w') as fp:
                 fp.writelines(self.plan)
 
-    def taskActivator(self, problem):
+    def taskActivator(self, problem=None):
         """
         Function: taskActivator, to activate a group of actions that have a plan.
         ---
@@ -195,16 +211,42 @@ class problemHandler():
         ---
         @return: None.
         """
-        vh = visionHandler(self.path)
-        vh.captureWorld(verbose=False)
-        vh.captureHand()
+        if self.ui.problemChanged:
+            self.reset_problem()
+            self.ui.problemChanged = False
+            self.vh.taskID = self.ui.getArUcoID()
+            self.vh.solved = False
+            self.solved = False
+
+        self.solved = self.vh.solved
+
+        if self.solved:
+            for point in self.vh.taskWorld[self.ui.getArUcoID()]:
+            self.ui.blinker(point, self.vh.taskWorld[self.ui.getArUcoID()][point])
+            return
+
+        if problem == None:
+            problem = self.ui.getArUcoID()
+
+        self.vh.captureWorld(verbose=False)
+
+        if len(self.vh.errors) > 0:
+            for point in self.vh.errors:
+                self.ui.wrong(point)
+        if self.vh.message != "":
+            self.ui.messenger(self.vh.message, idx=1)
+        
+        for point in self.vh.worldState:
+            self.ui.blinker(point, self.vh.worldState[point])
+
+        self.vh.captureHand()
 
         taskList = self.tasksMap[problem]
 
         # Fill Human stock if empty
         if(problem[1:-1] != '_2x' and self.solution):
-            for key in vh.humanStock:
-                if (vh.humanStock[key] == 0):
+            for key in self.vh.humanStock:
+                if (self.vh.humanStock[key] == 0):
                     print('Filling Human stock: ', key)
                     self.taskActivator(key)
 
@@ -224,14 +266,35 @@ class problemHandler():
                 taskList = self.tasksMap[problem]
                 #   3. Un-comment the attached line.
                 self.stateWriter(taskGroup[2])
-            #   4. send the taskGroup to the Robot to be done.
+                #   4. send the taskGroup to the Robot to be done.
+                ah = actionHandler(self.plan)
+                neighbours = ah.actionInterpreter()
+                # signal to neighbours to blink in red.
+                for neighbour in neighbours:
+                    if neighbour in self.vh.worldState:
+                        self.ui.blinker(neighbour, self.vh.worldState[neighbour] +'p')
+
                 #   5. comment the taskGroup lines again
                 for lineIndex in taskGroup[0]:
                     # comment these lines.
                     self.stateWriter(lineIndex, comment=True)
 
                 self.stateWriter(taskGroup[2])
-                self.solution = True
+                # self.solution = True
+
+                # Message to user to stop interaction.
+                self.ui.messenger("Please Wait the Robot to finish !")
+                ah.action()
+                actionState = ah.actionEnded()
+                self.plan = None
+                # signal to neighbours to blink in green.
+                for neighbour in neighbours:
+                    if neighbour in self.vh.worldState:
+                        self.ui.blinker(neighbour, self.vh.worldState[neighbour] +'g')
+                # Message to user to start interaction.
+                self.ui.messenger("Please Do your Step !")
+                sleep(5)                                     # <-- the time before user interaction.
+
                 #   6. break the taskList loop.
                 return
             else:
@@ -252,27 +315,51 @@ class problemHandler():
                 taskList = self.tasksMap[problem]
                 #   3. Un-comment the attached line.
                 self.stateWriter(taskGroup[2])
-            #   4. send the taskGroup to the Robot to be done.
+                #   4. send the taskGroup to the Robot to be done.
+                ah = actionHandler(self.plan)
+                neighbours = ah.actionInterpreter()
+                # signal to neighbours to blink in red.
+                for neighbour in neighbours:
+                    if neighbour in self.vh.worldState:
+                        self.ui.blinker(neighbour, self.vh.worldState[neighbour] +'p')
+
                 #   5. comment the taskGroup lines again
                 for lineIndex in taskGroup[1]:
                     # comment these lines.
                     self.stateWriter(lineIndex, comment=True)
 
                 self.stateWriter(taskGroup[2])
-                self.solution = True
+                # self.solution = True
+
+                # Message to user to stop interaction.
+                self.ui.messenger("Please Wait the Robot to finish !")
+                ah.action()
+                actionState = ah.actionEnded()
+                self.plan = None
+                # signal to neighbours to blink in green.
+                for neighbour in neighbours:
+                    if neighbour in self.vh.worldState:
+                        self.ui.blinker(neighbour, self.vh.worldState[neighbour] +'g')
+                # Message to user to start interaction.
+                self.ui.messenger("Please Do your Step !")
+                sleep(5)                                     # <-- the time before user interaction.
+                
                 #   6. break the taskList loop.
                 return
-
             else:
                 for lineIndex in taskGroup[1]:
                     # comment these lines.
                     self.stateWriter(lineIndex, comment=True)
 
-        if (self.plan is None):
+        self.solution = False
+
+        if (problem[1:-1] != '_2x' and not self.solution):
             # There is no solution for the plan, ask the user to do the rest(GUI).
             print('No Plan')
             self.solution = False
-            pass
+            self.NoSolution = True
+            self.ui.messenger("Please Do the Rest, our Robot cannot do more!")
+            self.reset_problem()
 
     def reset_problem(self):
         """
@@ -293,21 +380,38 @@ class problemHandler():
 
 #--------------------------------------------------------------
 
-mypath = 'G:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
+#=================
+#  Main Function #
+#=================
 
-ph = problemHandler(path = mypath, filename='problem_main.pddl')
-tic = time()
-ph.stateReader()
-toc = time()
-print("time for perception is: ", round(toc-tic, 3))
-tic = toc
-ph.taskActivator(problem='id_18')
-while(ph.plan is not None):
-    ph.taskActivator(problem='id_18')
-toc = time()
-print("time for planning is: ", round(toc-tic, 3))
+if __name__ == "__main__":
 
-ph.reset_problem()
+    mypath = 'G:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
+
+    app = QApplication(sys.argv)
+    MainWindow = QMainWindow()
+
+    ph = problemHandler(path = mypath, filename='problem_main.pddl', MainWindow=MainWindow)
+
+    MainWindow.show()
+    sys.exit(app.exec_())
+    while(not ph.NoSolution):
+        tic = time()
+        ph.stateReader()
+        toc = time()
+        print("time for perception is: ", round(toc-tic, 3))
+        tic = toc
+        ph.taskActivator()
+        while(ph.plan is not None):
+            ph.taskActivator()
+        toc = time()
+        print("time for planning is: ", round(toc-tic, 3))
+
+        ph.reset_problem()
+
+        if ph.ui.exit :
+            sys.exit("Exit signal from GUI")
+
 
 # loop as long as there is a solution
 # solution = True

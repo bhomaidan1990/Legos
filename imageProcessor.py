@@ -1,9 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
-
 '''
 | author:
-| Belal HMEDAN, LIG lab/ Marven Team, France, 2021.
+| Belal HMEDAN, 
+| LIG lab/ Marven Team, 
+| France, 2021.
 | image processing script.
 '''
 """
@@ -15,13 +16,11 @@ import os
 import sys
 import numpy as np
 import cv2
-# import matplotlib.pyplot as plt
 from functools import cmp_to_key  
 #=======================
 # class imageProcessor |
 #=======================
 class imageProcessor():
-
     def __init__(self, imgPath, imgName='image.jpg'):
         """
         Class imageProcessor: Read and Process image to get world state.
@@ -42,18 +41,18 @@ class imageProcessor():
 
         self.cellsState = {
         # First column
-        0:  ['ws_11', 'g'], 1:  ['ws_12', 'g'], 2:  ['ws_13', 'g'], 3:  ['ws_14', 'g'],
+        0:  ['p_10_04', 'g'], 1:  ['p_11_04', 'g'], 2:  ['p_12_04', 'g'], 3:  ['p_13_04', 'g'],
         # Second column
-        4:  ['ws_21', 'g'], 5:  ['ws_22', 'g'], 6:  ['ws_23', 'g'], 7:  ['ws_24', 'g'],
+        4:  ['p_10_05', 'g'], 5:  ['p_11_05', 'g'], 6:  ['p_12_05', 'g'], 7:  ['p_13_05', 'g'],
         # Third column
-        8:  ['ws_31', 'g'], 9:  ['ws_32', 'g'], 10: ['ws_33', 'g'], 11: ['ws_34', 'g'],
+        8:  ['p_10_06', 'g'], 9:  ['p_11_06', 'g'], 10: ['p_12_06', 'g'], 11: ['p_13_06', 'g'],
         # Fourth column
-        12: ['ws_41', 'g'], 13: ['ws_42', 'g'], 14: ['ws_43', 'g'], 15: ['ws_44', 'g']
+        12: ['p_10_07', 'g'], 13: ['p_11_07', 'g'], 14: ['p_12_07', 'g'], 15: ['p_13_07', 'g']
         }
 
         self.swapState = {
         # Swap
-        's1' : 'g', 's2' : 'g', 's3' : 'g' }
+        'p_07_06' : 'g', 'p_07_07' : 'g'}
 
         self.humanStock = {
         'b_2x2': 1, 'b_2x4': 1, 'y_2x2': 1, 'y_2x4': 1 }
@@ -497,14 +496,6 @@ class imageProcessor():
 
         # Visualize results
         if(verbose):
-            # Get cell center, add an x offset:
-            # textX = int(cellCenters[cellCounter][0]) - 10
-            # textY = int(cellCenters[cellCounter][1])
-
-            # # Draw text on cell's center:
-            # font = cv2.FONT_HERSHEY_SIMPLEX
-            # cv2.putText(centerPortion, cellColor, (textX, textY), font,
-            #                 1, (0, 0, 255), 1, cv2.LINE_8)
 
             cv2.namedWindow("centerPortion", cv2.WINDOW_NORMAL)
             cv2.imshow("centerPortion", centerPortion)
@@ -524,9 +515,8 @@ class imageProcessor():
             greenPlatform = cv2.resize(greenPlatform, greenShape)
 
         swap = {
-        's1' : greenPlatform[145:170, 465:495, :],
-        's2' : greenPlatform[115:140, 465:495, :],
-        's3' : greenPlatform[85:110, 465:495, :],
+        'p_07_06' : greenPlatform[145:170, 490:520, :],
+        'p_07_07' : greenPlatform[115:140, 490:520, :]
         }
 
         for zone in swap:
@@ -581,14 +571,9 @@ class imageProcessor():
             greenMask, greenMaskBGR = self.Morhology(greenMask, th=240 ,verbose=verbose)
             # find the large rectangles
             self.greenRects = self.findMarkersContour(greenMask, minArea=10000)
-
+            
         # crop the large rectangle
         greenPlatform = self.cropPlatform(self.greenRects, undistorted)
-
-        # cv2.namedWindow("centerPortion", cv2.WINDOW_NORMAL)
-        # cv2.imshow("centerPortion", greenPlatform)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
 
         # detect swap, and human stock
         hand = self.handDetector() 
@@ -599,11 +584,6 @@ class imageProcessor():
                 redMask = self.HSV_mask(greenPlatform, 'red')
                 # Morpholoical closing
                 self.redMask, self.redMaskBGR = self.Morhology(redMask, th=50, verbose=verbose)
-
-                # cv2.namedWindow("centerPortion", cv2.WINDOW_NORMAL)
-                # cv2.imshow("centerPortion", redMask)
-                # cv2.waitKey(1000)
-                # cv2.destroyAllWindows()
 
                 # find the red markers
                 redRects  = self.findMarkersContour(self.redMask, minArea=800)
@@ -712,10 +692,6 @@ class imageProcessor():
                 rectY = currentRect[1]
                 rectWidth = currentRect[2]
                 rectHeight = currentRect[3]
-
-                # Draw contour rect:
-                # cv2.rectangle(global_mask, (int(rectX), int(rectY)), (int(rectX + rectWidth), 
-                #  int(rectY + rectHeight)), (0, 0, 255), 1)
 
             # show the detection
             cv2.namedWindow("handMask", cv2.WINDOW_NORMAL)

@@ -144,3 +144,5 @@ class RWS4YuMi():
 		return jointtarget
 #-------------------------------------------------------------
 
+# api = RWS4YuMi()
+# print(api.getRobtarget())

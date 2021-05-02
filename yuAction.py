@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 '''
 | author:
-| Belal HMEDAN, LIG lab/ Marven Team, France, 2021.
+| Belal HMEDAN, 
+| LIG lab/ Marven Team, 
+| France, 2021.
 | Action Handeling script.
 '''
 import subprocess
@@ -159,21 +161,6 @@ class actionHandler():
 		self.writeLine(placePos)
 
 		return neighborhood
-
-	# def actionMapper(self):
-	# 	"""
-	# 	Function: actionMapper, to map the plan into action, and pass the neighbourhood to the GUI.
-	# 	---
-	# 	Parameters:
-	# 	@param: None
-	# 	---
-	# 	@return: None
-	# 	"""
-	# 	neighbours = self.actionInterpreter()
-	# 	print(neighbours) # to be passed to the GUI
-	# 	self.action()
-	#     pass
-
 
 	def action(self):
 		"""
