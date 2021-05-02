@@ -222,7 +222,7 @@ class problemHandler():
 
         if self.solved:
             for point in self.vh.taskWorld[self.ui.getArUcoID()]:
-            self.ui.blinker(point, self.vh.taskWorld[self.ui.getArUcoID()][point])
+                self.ui.blinker(point, self.vh.taskWorld[self.ui.getArUcoID()][point])
             return
 
         if problem == None:
