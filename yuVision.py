@@ -10,7 +10,7 @@
 import paramiko
 import numpy as np
 import cv2
-from time import sleep, time
+from time import time
 from imageProcessor import imageProcessor
 
 #=====================
@@ -65,17 +65,20 @@ class communicator():
 #======================
 class visionHandler():
 
-    def __init__(self, path, pi_id=1, taskID='id_18'):
+    def __init__(self, path, pi_id=1, taskID='id_18', connection=True):
         """
         Class visionHandler: Read and Process images remotely.
         ---
         Parameters:
         @param: pi_id, integer, raspberry pi module id: 1, 2, ..., 6.
         @param: path, string, the path to save the image locally on PC.
+        @param: taskID, string, ArUco ID, ['id_18', 'id_25', 'id_101']
+        @param: connection, bool, to establish a connection with the Raspberry.
         """
         self.pi_id = pi_id
         self.path = path
-        self.com = communicator('192.168.125.{}0'.format(pi_id), 'pi{}'.format(pi_id), '000000')
+        if connection:
+            self.com = communicator('192.168.125.{}0'.format(pi_id), 'pi{}'.format(pi_id), '000000')
         self.humanAction = False
         self.hand = False
         self.taskID = taskID
@@ -92,7 +95,7 @@ class visionHandler():
         # Fourth column
         'p_10_07': 'g', 'p_11_07': 'g', 'p_12_07': 'g', 'p_13_07': 'g',
         # Swap
-        'p_07_06'   : 'g', 'p_07_06'   : 'g'
+        'p_07_06' : 'g', 'p_07_07' : 'g'
         }
 
         self.humanStock = {
@@ -108,7 +111,9 @@ class visionHandler():
         # Third column
         'p_10_06': 'b', 'p_11_06': 'y', 'p_12_06': 'b', 'p_13_06': 'y',
         # Fourth column
-        'p_10_07': 'y', 'p_11_07': 'y', 'p_12_07': 'y', 'p_13_07': 'b'
+        'p_10_07': 'y', 'p_11_07': 'y', 'p_12_07': 'y', 'p_13_07': 'b',
+        # Swap
+        'p_07_06' : 'g', 'p_07_07' : 'g'
         },
         'id_25' : {
         # First column
@@ -118,7 +123,9 @@ class visionHandler():
         # Third column
         'p_10_06': 'b', 'p_11_06': 'y', 'p_12_06': 'y', 'p_13_06': 'y',
         # Fourth column
-        'p_10_07': 'b', 'p_11_07': 'b', 'p_12_07': 'b', 'p_13_07': 'y'
+        'p_10_07': 'b', 'p_11_07': 'b', 'p_12_07': 'b', 'p_13_07': 'y',
+        # Swap
+        'p_07_06' : 'g', 'p_07_07' : 'g'
         },
         'id_101' : {
         # First column
@@ -128,7 +135,21 @@ class visionHandler():
         # Third column
         'p_10_06': 'y', 'p_11_06': 'y', 'p_12_06': 'y', 'p_13_06': 'b',
         # Fourth column
-        'p_10_07': 'y', 'p_11_07': 'b', 'p_12_07': 'y', 'p_13_07': 'b'
+        'p_10_07': 'y', 'p_11_07': 'b', 'p_12_07': 'y', 'p_13_07': 'b',
+        # Swap
+        'p_07_06' : 'g', 'p_07_07' : 'g'
+        },
+        'id_21' : {
+        # First column
+        'p_10_04': 'y', 'p_11_04': 'b', 'p_12_04': 'y', 'p_13_04': 'y',
+        # Second column
+        'p_10_05': 'b', 'p_11_05': 'b', 'p_12_05': 'b', 'p_13_05': 'b',
+        # Third column
+        'p_10_06': 'b', 'p_11_06': 'b', 'p_12_06': 'y', 'p_13_06': 'b',
+        # Fourth column
+        'p_10_07': 'y', 'p_11_07': 'b', 'p_12_07': 'y', 'p_13_07': 'y',
+        # Swap
+        'p_07_06' : 'g', 'p_07_07' : 'g'
         }
         }
 
@@ -145,13 +166,14 @@ class visionHandler():
         self.solved = True
         self.message = ""
         for point in groundTruth:
-            if not self.worldState[point] in ['g', groundTruth[point]]:
+            if not self.worldState[point] in ['g', groundTruth[point]] and not point in ['p_07_06', 'p_07_07']:
                 # signal to the GUI an error in position
                 self.errors.append(point)
                 # send a message to the operator.
                 self.message = "please pay attention, there is a wrong block!"
+                print(point, self.worldState[point], groundTruth[point])
 
-            if self.worldState[point] != groundTruth[point]:
+            if self.worldState[point] != groundTruth[point] and not point in ['p_07_06', 'p_07_07']:
                 self.solved = False
 
     def captureWorld(self, verbose=False):
@@ -224,6 +246,6 @@ class visionHandler():
 
 # vh.captureWorld()
 
-# vh.captureHand(verbose=True)
-# print('out', vh.hand)
+# # vh.captureHand(verbose=True)
+# # print('out', vh.hand)
 # print(vh.worldState, '\n', vh.humanStock, '\n', vh.humanAction)

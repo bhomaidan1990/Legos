@@ -15,7 +15,7 @@ MODULE MainModule
   !===============
   PROC main()
 
-  calibrateGripper;
+  ! calibrateGripper;
   g_GripOut;
   MoveJ pickap, v50, z10, tool0;
 

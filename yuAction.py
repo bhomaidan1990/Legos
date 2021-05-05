@@ -9,7 +9,8 @@
 '''
 import subprocess
 from RWS4YuMi import RWS4YuMi
-from time import sleep, time
+from time import time
+from PyQt5.QtCore import QTimer
 #
 
 #======================
@@ -24,6 +25,7 @@ class actionHandler():
 	    @param: plan, list of strings list, each string list is an action with parameters.
 	    """
 	    self.plan = plan
+	    self.actionTimer = None
 	    self.api = RWS4YuMi()
 
 	def pointCoords(self, point, filepath='points.txt', name=None):
@@ -47,7 +49,7 @@ class actionHandler():
 							line[2] = name
 							line = " ".join(line)
 						return line
-		print("Point Not Found!")
+		print("Point {} Not Found!".format(point))
 		return None
 	
 	def writeLine(self, point, filepath='Rapid/currLeft.mod'):
@@ -76,7 +78,7 @@ class actionHandler():
 			codeList[lineIndex-1] = line+"\n"
 			fp.writelines(codeList)
 
-	def actionInterpreter(self):
+	def actionInterpreter(self, verbose=False):
 		"""
 		Function: actionInterpreter, to interpret the plan into pick & place positions, and neighbours.
 		---
@@ -107,16 +109,25 @@ class actionHandler():
 		'y_2x4_31_R' : 'p_20_04',
 		'y_2x4_32_R' : 'p_22_04',
 		# b_2x4
-		'b_2x4_51_L' : 'p_18_08',
-		'b_2x4_52_L' : 'p_20_08',
-		'b_2x4_53_L' : 'p_22_08',
-		'b_2x4_41_L' : 'p_18_06',
-		'b_2x4_51_R' : 'p_19_08',
-		'b_2x4_52_R' : 'p_21_08',
-		'b_2x4_53_R' : 'p_23_08',
-		'b_2x4_41_R' : 'p_19_06'
+		'b_2x4_51_R' : 'p_18_08',
+		'b_2x4_52_R' : 'p_20_08',
+		'b_2x4_53_R' : 'p_22_08',
+		'b_2x4_41_R' : 'p_18_06',
+		'b_2x4_51_L' : 'p_19_08',
+		'b_2x4_52_L' : 'p_21_08',
+		'b_2x4_53_L' : 'p_23_08',
+		'b_2x4_41_L' : 'p_19_06'
 		}
 		rotDict = {
+		'p_20_00' : ['HA', 'HC'],
+		'p_21_00' : ['HA', 'HC'],
+		'p_22_00' : ['HA', 'HC'],
+		'p_23_00' : ['HA', 'HC'],
+		'p_20_06' : ['HA', 'HC'],
+		'p_21_06' : ['HA', 'HC'],
+		'p_22_06' : ['HA', 'HC'],
+		'p_23_06' : ['HA', 'HC'],
+		# 
 		'p_23_02' : ['HA', 'HC'],
 		'p_22_02' : ['HC', 'HA'],
 		'p_21_02' : ['HA', 'HC'],
@@ -133,9 +144,16 @@ class actionHandler():
 		'p_20_04' : ['HC', 'HA'],
 		'p_19_06' : ['HA', 'HC'],
 		'p_18_06' : ['HC', 'HA'],
+		# swap
+		'p_07_06' : ['HC', 'HC'],
+		'p_07_07' : ['HC', 'HC']
 		}
 		# action is a list of action and related params
 		for action in self.plan:
+
+			action = action[action.index('(')+1:action.index(')')].split()
+			if(verbose):
+				print(action)
 			if action[0]=='hold_gripper':
 				pickPos = legoDict[action[1]]
 			elif action[0]=='hold_gripper_right':
@@ -145,20 +163,28 @@ class actionHandler():
 
 			elif action[0] in ['put_2x2_v', 'put_2x2_h']:
 				placePos = action[-3]+"VS"
-				neighborhood = action[-2:]
+				# print(placePos)
+				neighborhood = action[-3:]
 			elif action[0] in ['put_upper_4x2', 'put_lower_4x2', 'put_left_2x4', 'put_right_2x4']:
 				placePos = action[-4]+"VS"
-				neighborhood = action[-3:]
+				# print(placePos)
+				neighborhood = action[-4:]
 
 			elif action[0] in ['rotate_2x2_loaded_gripper_v2h', 'rotate_2x4_right_loaded_gripper_v2h_clk', 'rotate_2x4_left_loaded_gripper_v2h_clk']:
 				rotAngle = 90
-				placePos[-2:] = rotDict[pickPos][1]
+				
 			elif action[0] in ['rotate_2x4_right_loaded_gripper_v2h_anticlk', 'rotate_2x4_left_loaded_gripper_v2h_anticlk']:
 				rotAngle = -90
-				placePos[-2:] = rotDict[pickPos][0]
+				
+		if rotAngle == 90:
+			placePos = placePos[:-2]+rotDict[pickPos][1]
+		elif rotAngle == -90:
+			placePos = placePos[:-2]+rotDict[pickPos][0]
 
 		self.writeLine(pickPos)
 		self.writeLine(placePos)
+		if verbose:
+			print("points: ",pickPos, placePos)
 
 		return neighborhood
 
@@ -186,20 +212,20 @@ class actionHandler():
 		---
 		@return: boolean, True if the action ended, False in case of Errors.
 		"""
-		status = ''
-		while(status!='stopped' and status is not None):
-			status = self.api.actionStatus()
-			sleep(3)
-		if status is None:
+		status = self.api.actionStatus()
+
+		if status!='stopped':
 			return False
-		return True
+			
+		elif status=='stopped':
+			return True
 
 #----------------------------------
 
-# ah = actionHandler(plan)
-# ah.actionMapper()
+# ah = actionHandler([])
+# # # ah.actionMapper()
 
-# tic = time()
+# # # tic = time()
 # ah.action()
 
 # if(ah.actionEnded()):

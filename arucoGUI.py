@@ -10,14 +10,18 @@
 
 import sys
 import re
+from time import time
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import (QWidget, QDesktopWidget, QLabel, QComboBox,
 QPushButton, QSizePolicy, QGroupBox, QHBoxLayout, QVBoxLayout, QGridLayout)
 # , QApplication, QMainWindow
 from PyQt5.QtCore import (Qt, QCoreApplication, QMetaObject, pyqtProperty, 
-    QRect, QPropertyAnimation, pyqtProperty)
+    QRect, QPropertyAnimation, pyqtProperty, QTimer)
 from PyQt5.QtGui import QPixmap, QPalette, QColor
 
+from yuVision import visionHandler
+from problemHandler import problemHandler
 #======================
 # class AnimatedLabel |
 #======================
@@ -37,8 +41,9 @@ class AnimatedLabel(QLabel):
                 "b": QColor(0, 0, 255),
                 "y": QColor(255, 255, 0),
                 "g": QColor(0, 130, 0),
-                "bg": [QColor(0, 0, 255), QColor(0, 130, 0)],
-                "yg": [QColor(255, 255, 0), QColor(0, 130, 0)],
+                # "bg": [QColor(0, 0, 255), QColor(0, 130, 0)],
+                # "yg": [QColor(255, 255, 0), QColor(0, 130, 0)],
+                "gp": [QColor(0, 130, 0), QColor(255, 10, 10)],
                 "bp": [QColor(0, 0, 255), QColor(255, 10, 10)],
                 "yp": [QColor(255, 255, 0), QColor(255, 10, 10)]
                 }
@@ -49,7 +54,7 @@ class AnimatedLabel(QLabel):
         Function: blink, define the foreground backgound color for blinking.
         ---
         Parameters:
-        @param: mode, string, any of the set: ['b', 'y', 'g', 'bg', 'yg', 'bp', 'yp']
+        @param: mode, string, any of the set: ['b', 'y', 'g', 'bp', 'yp', 'gp']
         ---
         @return: None
         """
@@ -124,13 +129,13 @@ class AnimatedLabel(QLabel):
 # class Ui_MainWindow |
 #======================
 class Ui_MainWindow(object):
-    def __init__(self, MainWindow):
+    def __init__(self, MainWindow, path):
         """
         Class Ui_MainWindow:to create the GUI Main Window.
         ---
         Parameters:
+        @param: MainWindow, QMainWindow object.
         @param: path, string, the path to the problem.
-        @param: filename, string, the problem filename.
         """
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(3840, 2160)
@@ -141,9 +146,13 @@ class Ui_MainWindow(object):
         boldFfont.setPointSize(12)
         boldFfont.setBold(True)
         boldFfont.setWeight(60)
-
+        self.path = path
         self.problemChanged = False
-        self.exit = False
+        self.exit  = False
+        self.startFlag = False
+        self.vh = visionHandler('', taskID='', connection=False)
+        self.ph = problemHandler(path=path, filename='problem_main.pddl', ui=self)
+        self.actionState = True
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
 
@@ -307,8 +316,25 @@ class Ui_MainWindow(object):
         self.Aruco_selector.addItem('id_25')
         self.Aruco_selector.addItem('id_101')
 
-        self.PB_Exit = QPushButton(self.centralwidget)
-        self.PB_Exit.setGeometry(QRect(100, 1600, 400, 150))
+        self.GB_PB = QGroupBox(self.centralwidget)
+        self.GB_PB.setGeometry(QRect(50, 1150, 500, 650))
+        self.GB_PB.setObjectName("GB_PB")
+        self.GB_PB.setStyleSheet("border: 1px solid black;")
+
+        self.PB_Start = QPushButton(self.GB_PB)
+        self.PB_Start.setGeometry(QRect(50, 50, 400, 150))
+        self.PB_Start.setFont(boldFfont)
+        self.PB_Start.setObjectName("PB_Start")
+        self.PB_Start.setText("Start")
+
+        self.PB_Stop = QPushButton(self.GB_PB)
+        self.PB_Stop.setGeometry(QRect(50, 250, 400, 150))
+        self.PB_Stop.setFont(boldFfont)
+        self.PB_Stop.setObjectName("PB_Stop")
+        self.PB_Stop.setText("Stop")
+
+        self.PB_Exit = QPushButton(self.GB_PB)
+        self.PB_Exit.setGeometry(QRect(50, 450, 400, 150))
         self.PB_Exit.setFont(boldFfont)
         self.PB_Exit.setObjectName("PB_Exit")
         self.PB_Exit.setText("Exit")
@@ -318,14 +344,11 @@ class Ui_MainWindow(object):
         QMetaObject.connectSlotsByName(MainWindow)
         #===================================================================
         #======================== Signals ==================================
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
-        #
+        self.PB_Start.clicked.connect(self.start)
+        self.PB_Stop.clicked.connect(self.stop)
         self.PB_Exit.clicked.connect(self.close)
         self.Aruco_selector.currentTextChanged.connect(self.arucoChanged)
-        # self.PB_Exit.clicked.connect(lambda: self.wrong('p_10_04'))
-        # self.PB_Exit.clicked.connect(lambda: self.blinker('p_10_04', 'yg' )) # ['b', 'y', 'g', 'bg', 'yg', 'bp', 'yp']
-        # self.PB_Exit.clicked.connect(lambda: self.blinker('p_11_04', 'bp' )) # ['b', 'y', 'g', 'bg', 'yg', 'bp', 'yp']
-        # self.PB_Exit.clicked.connect(lambda: self.messenger('Hello There'))
+
         #==================================================================
         #==================================================================
     def blinker(self, ID, mode):
@@ -334,7 +357,7 @@ class Ui_MainWindow(object):
         ---
         Parameters:
         @param: ID, string, the id of the Label to change its colors.
-        @param: mode, string, any of the set: ['b', 'y', 'g', 'bg', 'yg', 'bp', 'yp']
+        @param: mode, string, any of the set: ['b', 'y', 'g', 'bp', 'yp', 'gp']
         ---
         @return: None
         """
@@ -356,7 +379,7 @@ class Ui_MainWindow(object):
         'p_12_07': self.LB_p_12_07,
         'p_13_07': self.LB_p_13_07,
         'p_07_06': self.LB_s1,
-        'p_07_07': self.LB_s2,
+        'p_07_07': self.LB_s2
         }
         workspaceDict[ID].blink(mode)
 
@@ -433,7 +456,57 @@ class Ui_MainWindow(object):
         """
         self.problemChanged = True
 
-    def close(selft):
+    def start(self):
+        """
+        Function: start, to start.
+        ---
+        Parameters:
+        @param: None
+        ---
+        @return: None
+        """
+        self.startFlag = True
+        self.vh.taskID = self.getArUcoID()
+
+        self.ph.NoSolution = False
+        self.ph.reset_problem()
+        self.startLooper()
+
+
+    def startLooper(self):
+
+        if (not self.ph.NoSolution) and self.startFlag:
+            print("There is Solution...")
+            if self.actionState:
+                print("Running...")
+                tic = time()
+                self.ph.stateReader()
+                toc = time()
+                print("time for perception is: ", round(toc-tic, 3))
+                tic = toc
+
+                self.ph.run()
+
+            self.ph.checkAction()
+            QTimer.singleShot(3000, self.startLooper)
+        if self.ph.NoSolution:
+            self.messenger("Please Do the Rest, our Robot cannot do more!")
+            
+    def stop(self):
+        """
+        Function: stop, to stop.
+        ---
+        Parameters:
+        @param: None
+        ---
+        @return: None
+        """
+        self.startFlag = False
+        legos = self.vh.taskWorld[self.getArUcoID()]
+        for point in legos:
+        	self.blinker(point, 'g' )
+
+    def close(self):
         """
         Function: close, to close the GUI.
         ---
@@ -449,9 +522,13 @@ class Ui_MainWindow(object):
 #  Main Function #
 #=================
 
-# if __name__ == "__main__":
-#     app = QtWidgets.QApplication(sys.argv)
-#     MainWindow = QtWidgets.QMainWindow()
-#     ui = Ui_MainWindow(MainWindow)
-#     MainWindow.show()
-#     sys.exit(app.exec_())
+if __name__ == "__main__":
+
+	mypath = 'G:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
+
+	app = QtWidgets.QApplication(sys.argv)
+	MainWindow = QtWidgets.QMainWindow()
+
+	ui = Ui_MainWindow(MainWindow, mypath)
+	MainWindow.show()
+	sys.exit(app.exec_())

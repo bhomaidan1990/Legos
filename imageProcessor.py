@@ -41,13 +41,13 @@ class imageProcessor():
 
         self.cellsState = {
         # First column
-        0:  ['p_10_04', 'g'], 1:  ['p_11_04', 'g'], 2:  ['p_12_04', 'g'], 3:  ['p_13_04', 'g'],
+        15:  ['p_10_04', 'g'], 14:  ['p_11_04', 'g'], 13:  ['p_12_04', 'g'], 12:  ['p_13_04', 'g'],
         # Second column
-        4:  ['p_10_05', 'g'], 5:  ['p_11_05', 'g'], 6:  ['p_12_05', 'g'], 7:  ['p_13_05', 'g'],
+        11:  ['p_10_05', 'g'], 10:  ['p_11_05', 'g'], 9:  ['p_12_05', 'g'], 8:  ['p_13_05', 'g'],
         # Third column
-        8:  ['p_10_06', 'g'], 9:  ['p_11_06', 'g'], 10: ['p_12_06', 'g'], 11: ['p_13_06', 'g'],
+        7:  ['p_10_06', 'g'], 6:  ['p_11_06', 'g'], 5: ['p_12_06', 'g'], 4: ['p_13_06', 'g'],
         # Fourth column
-        12: ['p_10_07', 'g'], 13: ['p_11_07', 'g'], 14: ['p_12_07', 'g'], 15: ['p_13_07', 'g']
+        3: ['p_10_07', 'g'], 2: ['p_11_07', 'g'], 1: ['p_12_07', 'g'], 0: ['p_13_07', 'g']
         }
 
         self.swapState = {
@@ -99,7 +99,7 @@ class imageProcessor():
         # Dictionary to map the range of the Hue, Saturation, Value(illumination) of each color.
         HSV_ranges = {
         "red":      ( 174,  12) + (140, 255) + (20, 255),
-        "green":    (  55,  90) + (115, 255) + (20, 255),
+        "green":    (  55,  90) + (150, 255) + (20, 255),
         "blue":     (  95, 115) + (115, 255) + (20, 255),
         "yellow":   (  20,  30) + (190, 255) + (20, 255)
         }
@@ -452,7 +452,7 @@ class imageProcessor():
         # HSV dictionary - color ranges and color name:
         colorDictionary = {0: ([95, 115, 0], [115, 255, 255], "blue"  ),
                            1: ([20, 190, 0], [30, 255,  255], "yellow"),
-                           2: ([55, 115, 0], [90, 255,  255], "green" )}
+                           2: ([55, 150, 0], [90, 255,  255], "green" )}
 
         # Cell counter:
         cellCounter = 0
@@ -574,7 +574,6 @@ class imageProcessor():
             
         # crop the large rectangle
         greenPlatform = self.cropPlatform(self.greenRects, undistorted)
-
         # detect swap, and human stock
         hand = self.handDetector() 
         if(not hand):
@@ -706,7 +705,7 @@ class imageProcessor():
 
 # mypath = 'G:/Grenoble/Semester_4/Project_Codes/Problem_Domain/New_Domain_Problem/'
 
-# proc = imageProcessor(imgPath=mypath, imgName='im.jpg')
+# proc = imageProcessor(imgPath=mypath, imgName='image.jpg')
 
 # proc.stateAnalyzer(verbose=True)
 
