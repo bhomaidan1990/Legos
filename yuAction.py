@@ -119,6 +119,7 @@ class actionHandler():
 		'b_2x4_41_L' : 'p_19_06'
 		}
 		rotDict = {
+		# 2x2
 		'p_20_00' : ['HA', 'HC'],
 		'p_21_00' : ['HA', 'HC'],
 		'p_22_00' : ['HA', 'HC'],
@@ -127,23 +128,23 @@ class actionHandler():
 		'p_21_06' : ['HA', 'HC'],
 		'p_22_06' : ['HA', 'HC'],
 		'p_23_06' : ['HA', 'HC'],
-		# 
+		# 2x4
 		'p_23_02' : ['HA', 'HC'],
-		'p_22_02' : ['HC', 'HA'],
+		'p_22_02' : ['HA', 'HC'],
 		'p_21_02' : ['HA', 'HC'],
-		'p_20_02' : ['HC', 'HA'],
+		'p_20_02' : ['HA', 'HC'],
 		'p_23_08' : ['HA', 'HC'],
-		'p_22_08' : ['HC', 'HA'],
+		'p_22_08' : ['HA', 'HC'],
 		'p_21_08' : ['HA', 'HC'],
-		'p_20_08' : ['HC', 'HA'],
+		'p_20_08' : ['HA', 'HC'],
 		'p_19_08' : ['HA', 'HC'],
-		'p_18_08' : ['HC', 'HA'],
+		'p_18_08' : ['HA', 'HC'],
 		'p_23_04' : ['HA', 'HC'],
-		'p_22_04' : ['HC', 'HA'],
+		'p_22_04' : ['HA', 'HC'],
 		'p_21_04' : ['HA', 'HC'],
-		'p_20_04' : ['HC', 'HA'],
+		'p_20_04' : ['HA', 'HC'],
 		'p_19_06' : ['HA', 'HC'],
-		'p_18_06' : ['HC', 'HA'],
+		'p_18_06' : ['HA', 'HC'],
 		# swap
 		'p_07_06' : ['HC', 'HC'],
 		'p_07_07' : ['HC', 'HC']
@@ -223,11 +224,12 @@ class actionHandler():
 #----------------------------------
 
 # ah = actionHandler([])
-# # # ah.actionMapper()
 
-# # # tic = time()
+# # # # ah.actionMapper()
+
+# # # # tic = time()
 # ah.action()
 
-# if(ah.actionEnded()):
-# 	toc = time()
-# 	print('Done within: {} seconds.'.format(round(toc-tic, 3)))
+# # if(ah.actionEnded()):
+# # 	toc = time()
+# # 	print('Done within: {} seconds.'.format(round(toc-tic, 3)))
