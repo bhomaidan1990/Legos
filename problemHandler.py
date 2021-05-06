@@ -33,13 +33,13 @@ class problemHandler():
         self.plan = None
         self.solution = True
         self.NoSolution = False
-        self.solved = False
         # self.actionState = True
         self.vh = visionHandler(path)
         self.ui = ui
         self.ah = None
         self.actionTimer = None
         self.neighbours = None
+        self.num = None
         # 'problem_id : list[ tuple( tuple(line index of 1st group of tasks),
         # tuple(line index of 2nd group of tasks), block line index)]'
         #      id_18:   ((145, 146), (148, 149), 706),
@@ -129,8 +129,20 @@ class problemHandler():
         'b': True,
         'y': True
         }
+        if self.vh.solved:
+            print("PH, Solved !")
+            for point in self.vh.taskWorld[self.ui.getArUcoID()]:
+                self.ui.blinker(point, self.vh.taskWorld[self.ui.getArUcoID()][point])
+                # self.ui.messenger("Thank You")
+                # self.ui.messenger("Task Has been solved", idx=1)
+            return
+
+        # self.ui.messenger("YuMi is taking a look!...")
         self.vh.taskID = self.ui.getArUcoID()
+        print("PH ID ",self.vh.taskID)
         self.vh.captureWorld()
+
+        print(self.vh.worldState)
 
         if len(self.vh.errors) > 0:
             for point in self.vh.errors:
@@ -139,16 +151,19 @@ class problemHandler():
             for point in self.vh.worldState:
                 self.ui.blinker(point, self.vh.worldState[point], reset=True)
 
-        if self.vh.message != "":
-            self.ui.messenger(self.vh.message)
+        # if self.vh.message != "":
+        #     self.ui.messenger(self.vh.message)
 
         mappedState = {}
-        print(self.vh.worldState)
+        
         for location in self.vh.worldState:
             mappedState[locationMap[location]] = colorMap[self.vh.worldState[location]]
 
         for lineIdx in mappedState:
             self.stateWriter(lineIdx, comment=mappedState[lineIdx])
+
+        self.vh.errors = []
+        # self.ui.messenger("YuMi has Finished taking a look!...")
 
     def stateWriter(self, lineIndex, comment=False, shift=0):
         """
@@ -233,12 +248,9 @@ class problemHandler():
             self.reset_problem()
             self.vh.taskID = self.ui.getArUcoID()
             self.vh.solved = False
-            self.solved = False
             self.ui.problemChanged = False
 
-        self.solved = self.vh.solved
-
-        if self.solved:
+        if self.vh.solved:
             print("Solved !")
             for point in self.vh.taskWorld[self.ui.getArUcoID()]:
             	self.ui.blinker(point, self.vh.taskWorld[self.ui.getArUcoID()][point])
@@ -248,13 +260,7 @@ class problemHandler():
             problem = self.ui.getArUcoID()
 
         self.vh.taskID = self.ui.getArUcoID()
-        self.vh.captureWorld(verbose=False)
-
-        # if len(self.vh.errors) > 0:
-        #     for point in self.vh.errors:
-        #         self.ui.wrong(point)
-        # if self.vh.message != "":
-        #     self.ui.messenger(self.vh.message, idx=1)
+        # self.vh.captureWorld(verbose=False)
         
         for point in self.vh.worldState:
             if self.vh.worldState[point] !='g':
@@ -334,7 +340,7 @@ class problemHandler():
             print('No Plan')
             self.NoSolution = True
             self.ui.startFlag = False
-            self.ui.messenger("Please Do the Rest, our Robot cannot do more!")
+            self.ui.messenger("Please Do the Rest, our Robot cannot do more!.")
             # self.reset_problem(full=False)
         else:
             print("No Solution for Swap!\n")
@@ -370,15 +376,16 @@ class problemHandler():
         ---
         @return: None.
         """
-        status = self.ah.actionEnded()
+        if self.ah is not None:
+            status = self.ah.actionEnded()
 
-        # self.actionState = status
-        self.ui.actionState = status
+            # self.actionState = status
+            self.ui.actionState = status
 
-        if status:
-            self.interaction('g')
-        else:
-            self.interaction('p')            
+            if status:
+                self.interaction('g')
+            else:
+                self.interaction('p')          
 
     def run(self):        
         """
@@ -397,11 +404,11 @@ class problemHandler():
 
         if self.plan is not None:
             self.ah = actionHandler(self.plan)
-            self.interaction(verbose=True)
+            self.interaction()
             self.ah.action()
             self.checkAction()
         else:
-            self.ui.messenger("Please Do the Rest, our Robot cannot do more!")
+            self.ui.messenger("Please Do the Rest, our Robot cannot do more!..")
 
     def interaction(self, mode='p', verbose=False):
         """
@@ -412,31 +419,35 @@ class problemHandler():
         ---
         @return: None.
         """
+        sh = 0
         if self.neighbours is None:
             self.neighbours = self.ah.actionInterpreter(verbose=verbose)
-            for neighbour in self.neighbours:
-                if not neighbour in self.vh.worldState:
-                    self.neighbours.remove(neighbour)
-                    # print("Warning: Point {} is not from Workspace!".format(neighbour))
+            self.num = len(self.neighbours)
+            # print("Warning: Point {} is not from Workspace!".format(neighbour))
 
         if mode=='p':
-            # signal to neighbours to blink in red.
+
+            # # signal to neighbours to blink in red.
             self.ui.blinker(self.neighbours[0], self.vh.taskWorld[self.ui.getArUcoID()][self.neighbours[0]]+'p')
-            if len(self.neighbours) > 3:
-                self.ui.blinker(self.neighbours[3], self.vh.taskWorld[self.ui.getArUcoID()][self.neighbours[3]]+'p')
-            for neighbour in self.neighbours[1:3]:
+
+            if self.neighbours[-1] in self.vh.worldState and self.num>3:
+                self.ui.blinker(self.neighbours[-1], self.vh.taskWorld[self.ui.getArUcoID()][self.neighbours[-1]]+'p')
+
+            for neighbour in self.neighbours[1:self.num]:
                 if neighbour in self.vh.worldState:
                     self.ui.blinker(neighbour, self.vh.worldState[neighbour]+'p')
-                    self.ui.messenger("I'm Moving to the red blinking zone!")
+                    self.ui.messenger("I'm Moving, watch out the red blinking zone!")
 
             self.neighbours = None
 
         else:
-            # signal to neighbours to blink in original.
+            # # signal to neighbours to blink in original.
             self.ui.blinker(self.neighbours[0], self.vh.taskWorld[self.ui.getArUcoID()][self.neighbours[0]])
-            if len(self.neighbours) > 3:
-                self.ui.blinker(self.neighbours[3], self.vh.taskWorld[self.ui.getArUcoID()][self.neighbours[3]])
-            for neighbour in self.neighbours[1:3]:
+
+            if self.neighbours[-1] in self.vh.worldState and self.num>3:
+                self.ui.blinker(self.neighbours[-1], self.vh.taskWorld[self.ui.getArUcoID()][self.neighbours[-1]])
+
+            for neighbour in self.neighbours[1:self.num]:
                 if neighbour in self.vh.worldState:
                     self.ui.blinker(neighbour, self.vh.worldState[neighbour])
                     self.ui.messenger("I Have done my movement!")
