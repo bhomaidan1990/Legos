@@ -10,9 +10,8 @@
 import paramiko
 import numpy as np
 import cv2
-from time import time
+from time import time, sleep
 from imageProcessor import imageProcessor
-
 #=====================
 # class communicator |
 #=====================
@@ -79,12 +78,13 @@ class visionHandler():
         self.path = path
         if connection:
             self.com = communicator('192.168.125.{}0'.format(pi_id), 'pi{}'.format(pi_id), '000000')
-        self.humanAction = False
+        # self.proc = imageProcessor(path)
         self.hand = False
         self.taskID = taskID
         self.errors = []
         self.message = ""
         self.solved = False
+        
         self.worldState = {
         # First column
         'p_10_04': 'g', 'p_11_04': 'g', 'p_12_04': 'g', 'p_13_04': 'g',
@@ -174,7 +174,29 @@ class visionHandler():
                 print(point, self.worldState[point], groundTruth[point])
 
             if self.worldState[point] != groundTruth[point] and not point in ['p_07_06', 'p_07_07']:
+                print(point, self.worldState[point], groundTruth[point])
                 self.solved = False
+
+    def updateState(self, verbose=False):
+        """
+        Function: updateState, to update the real state.
+        ---
+        Parameters:
+        @param: verbose, boolean, to print the output of the function.
+        ---
+        @return: None
+        """
+        # write the colors to the worldState dictionary
+        # self.proc = imageProcessor(path)
+        self.proc.stateAnalyzer(verbose=verbose)
+        for key in self.proc.cellsState:
+            self.worldState[self.proc.cellsState[key][0]] = self.proc.cellsState[key][1]
+        for key in self.proc.swapState:
+            self.worldState[key] = self.proc.swapState[key]
+        for key in self.humanStock:
+            self.humanStock[key] = self.proc.humanStock[key]
+
+        # print("YuVis\n", self.worldState, self.proc.cellsState)
 
     def captureWorld(self, verbose=False):
         """
@@ -185,58 +207,57 @@ class visionHandler():
         ---
         @return: None
         """
-        # capture an image.
-        self.com.getImage(self.path)                                        #  <-- 1
-        # Process the image.
-        proc = imageProcessor(self.path)
-        proc.stateAnalyzer(verbose=verbose)
+        if self.solved:
+            print("yuVis, solved!")
+            return
+        self.com.getImage(self.path)
+        self.proc = imageProcessor(self.path)
+        while self.proc.handDetector():
+            print("yuVis, Hand Detected!")
+            sleep(5)
+            # capture an image.
+            self.com.getImage(self.path)     #  <-- 1
+
+        self.updateState(verbose=verbose)
         self.compareWorld()
-        # write the colors to the worldState dictionary
-        for key in proc.cellsState:
-            self.worldState[proc.cellsState[key][0]] = proc.cellsState[key][1]
-        for key in proc.swapState:
-            self.worldState[key] = proc.swapState[key]
-        for key in self.humanStock:
-            self.humanStock[key] = proc.humanStock[key]
 
-    def captureHand(self, verbose=False):
-        """
-        Function: captureHand, to capture an image of the workspace/swap and check the human hand presence.
-        ---
-        Parameters:
-        @param: verbose, boolean, to print the output of the function. 
-        ---
-        @return: hand, bool True if there is human hand, False if there is no human hand.
-        """
+    # def captureHand(self, verbose=False):
+    #     """
+    #     Function: captureHand, to capture an image of the workspace/swap and check the human hand presence.
+    #     ---
+    #     Parameters:
+    #     @param: verbose, boolean, to print the output of the function. 
+    #     ---
+    #     @return: hand, bool True if there is human hand, False if there is no human hand.
+    #     """
 
-        # capture an image.
-        tic = time()
-        self.com.getImage(self.path)                                         #  <-- 2
-        toc = time()
-        if verbose:
-            print('time for getting the image is: ', round(toc-tic, 3))
-        proc = imageProcessor(self.path)
-        detected = proc.handDetector()
+    #     # # capture an image.
+    #     # tic = time()
+    #     # self.com.getImage(self.path)                                         #  <-- 2
+    #     # toc = time()
+    #     # if verbose:
+    #     #     print('time for getting the image is: ', round(toc-tic, 3))
+    #     # proc = imageProcessor(self.path)
+    #     detected = self.proc.handDetector()
 
-        if(detected):
-            self.hand = True
-            self.humanAction = True
+    #     if(detected):
+    #         self.hand = True
 
-        # check if there is human hand.
-        while(detected):
-            # Process the image.
-            print('detected status', detected)
-            tic = time()
-            self.com.getImage(self.path)                                     #  <-- 3
-            toc = time()
-            if verbose:
-                print('time for getting the image is: ', round(toc-tic, 3))
-                tic = toc
-            detected = proc.handDetector()
+    #     # check if there is human hand.
+    #     while(detected):
+    #         # Process the image.
+    #         print('detected status', detected)
+    #         tic = time()
+    #         self.com.getImage(self.path)                                     #  <-- 3
+    #         toc = time()
+    #         if verbose:
+    #             print('time for getting the image is: ', round(toc-tic, 3))
+    #             tic = toc
+    #         detected = self.proc.handDetector()
 
-        if verbose:
-            print('Detected Hand status: ', detected)
-        self.hand = False
+    #     if verbose:
+    #         print('Detected Hand status: ', detected)
+    #     self.hand = False
 
 #----------------------------------------------------------------------------------
 

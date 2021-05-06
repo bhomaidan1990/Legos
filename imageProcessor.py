@@ -524,7 +524,7 @@ class imageProcessor():
             for color in ['green', 'yellow', 'blue']:
                 mask = self.HSV_mask(swap[zone], color)
                 pixelsCount = np.count_nonzero(mask)
-                if(pixelsCount>250):
+                if(pixelsCount>100):
                     self.swapState[zone] = color[0]
 
         humanStock = {
@@ -539,7 +539,7 @@ class imageProcessor():
             mask2 = self.HSV_mask(humanStock[zone], 'blue')
             mask  = cv2.bitwise_or(mask1, mask2) 
             pixelsCount = np.count_nonzero(mask)
-            if(not pixelsCount>250):
+            if(not pixelsCount>100):
                 self.humanStock[zone] = 0 
 
     def stateAnalyzer(self, verbose=False):
@@ -575,30 +575,30 @@ class imageProcessor():
         # crop the large rectangle
         greenPlatform = self.cropPlatform(self.greenRects, undistorted)
         # detect swap, and human stock
-        hand = self.handDetector() 
-        if(not hand):
-            self.swapAnalyser(greenPlatform)
-            if None in [self.redMask, self.redMaskBGR]:
-                # mask the red color
-                redMask = self.HSV_mask(greenPlatform, 'red')
-                # Morpholoical closing
-                self.redMask, self.redMaskBGR = self.Morhology(redMask, th=50, verbose=verbose)
+        # hand = self.handDetector() 
+        # if(not hand):
+        self.swapAnalyser(greenPlatform)
+        if any(elem is None for elem in [self.redMask, self.redMaskBGR]):
+            # mask the red color
+            redMask = self.HSV_mask(greenPlatform, 'red')
+            # Morpholoical closing
+            self.redMask, self.redMaskBGR = self.Morhology(redMask, th=50, verbose=verbose)
 
-                # find the red markers
-                redRects  = self.findMarkersContour(self.redMask, minArea=800)
-                # safe the coordinated of the markers
-                if self.workspaceCoords is None:
-                    _ = self.centerMarkersContour(self.redMaskBGR, redRects, verbose=verbose)
+            # find the red markers
+            redRects  = self.findMarkersContour(self.redMask, minArea=800)
+            # safe the coordinated of the markers
+            if self.workspaceCoords is None:
+                _ = self.centerMarkersContour(self.redMaskBGR, redRects, verbose=verbose)
 
-            # crop the workspace
-            workspace = self.cropWorkspace(greenPlatform, self.redMaskBGR, verbose=verbose)
+        # crop the workspace
+        workspace = self.cropWorkspace(greenPlatform, self.redMaskBGR, verbose=verbose)
 
-            if(None in [self.cellList, self.cellCenters]):
-                # grid workspace
-                self.cellList, self.cellCenters = self.gridWorkspace(workspace, verbose=verbose)
+        if any(elem is None for elem in [self.cellList, self.cellCenters]):
+            # grid workspace
+            self.cellList, self.cellCenters = self.gridWorkspace(workspace, verbose=verbose)
 
-            # analyse workspace
-            self.cellAnalyser(workspace, self.cellList, self.cellCenters, verbose=verbose)
+        # analyse workspace
+        self.cellAnalyser(workspace, self.cellList, self.cellCenters, verbose=verbose)
 
 
     def handDetector(self, verbose=False):
@@ -628,6 +628,21 @@ class imageProcessor():
         # crop the large rectangle
         greenPlatform = self.cropPlatform(self.greenRects, undistorted)
 
+        # if any(elem is None for elem in [self.redMask, self.redMaskBGR]):
+        #     # mask the red color
+        #     redMask = self.HSV_mask(greenPlatform, 'red')
+        #     # Morpholoical closing
+        #     self.redMask, self.redMaskBGR = self.Morhology(redMask, th=50, verbose=verbose)
+
+        #     # find the red markers
+        #     redRects  = self.findMarkersContour(self.redMask, minArea=800)
+        #     # safe the coordinated of the markers
+        #     if self.workspaceCoords is None:
+        #         _ = self.centerMarkersContour(self.redMaskBGR, redRects, verbose=verbose)
+
+        # # crop the workspace
+        # workspace = self.cropWorkspace(greenPlatform, self.redMaskBGR, verbose=verbose)
+        
         #converting from gbr to hsv color space
         img_HSV = cv2.cvtColor(greenPlatform, cv2.COLOR_BGR2HSV)
         #skin color range for hsv color space  (0, 15, 0), (17,170,255)
