@@ -18,9 +18,9 @@ QPushButton, QSizePolicy, QGroupBox, QHBoxLayout, QVBoxLayout, QGridLayout)
 # , QApplication, QMainWindow
 from PyQt5.QtCore import (Qt, QCoreApplication, QMetaObject, pyqtProperty, 
     QRect, QPropertyAnimation, pyqtProperty, QTimer)
-from PyQt5.QtGui import QPixmap, QPalette, QColor
+from PyQt5.QtGui import QPixmap, QPalette, QColor, QPainter
 
-from yuVision import visionHandler
+# from yuVision import visionHandler
 from problemHandler import problemHandler
 #======================
 # class AnimatedLabel |
@@ -150,12 +150,12 @@ class Ui_MainWindow(object):
         self.problemChanged = False
         self.exit  = False
         self.startFlag = False
-        self.vh = visionHandler('', taskID='', connection=False)
+        # self.vh = visionHandler('', taskID='', connection=False)
         self.ph = problemHandler(path=path, filename='problem_main.pddl', ui=self)
         self.actionState = True
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-
+        self.solved = False
         self.GB_aruco = QGroupBox(self.centralwidget)
         self.GB_aruco.setGeometry(QRect(600, 150, 1850, 1600))
         self.GB_aruco.setObjectName("GB_aruco")
@@ -313,6 +313,7 @@ class Ui_MainWindow(object):
         self.Aruco_selector.setFont(boldFfont)
         self.Aruco_selector.setObjectName("Aruco_selector")
         self.Aruco_selector.addItem('id_18')
+        self.Aruco_selector.addItem('id_21')
         self.Aruco_selector.addItem('id_25')
         self.Aruco_selector.addItem('id_101')
 
@@ -351,7 +352,7 @@ class Ui_MainWindow(object):
 
         #==================================================================
         #==================================================================
-    def blinker(self, ID, mode):
+    def blinker(self, ID, mode, reset=False):
         """
         Function: blinker, to make the labels blink/not blink with specific colors.
         ---
@@ -381,7 +382,19 @@ class Ui_MainWindow(object):
         'p_07_06': self.LB_s1,
         'p_07_07': self.LB_s2
         }
+
+        if reset:
+            workspaceDict[ID].clear()
+            w = workspaceDict[ID].width()
+            h = workspaceDict[ID].height()
+            pm2 = QPixmap(w, h)
+            pm2.fill(Qt.transparent)
+            workspaceDict[ID].setPixmap(pm2.scaled(w,h,Qt.KeepAspectRatio))
+            workspaceDict[ID].setScaledContents(True)
+
         workspaceDict[ID].blink(mode)
+
+
 
     def wrong(self, ID):
         """
@@ -454,7 +467,8 @@ class Ui_MainWindow(object):
         ---
         @return: None
         """
-        self.problemChanged = True
+        if self.startFlag:
+            self.problemChanged = True
 
     def start(self):
         """
@@ -466,32 +480,55 @@ class Ui_MainWindow(object):
         @return: None
         """
         self.startFlag = True
-        self.vh.taskID = self.getArUcoID()
-
+        # self.vh.taskID = self.getArUcoID()
+        # self.messenger("YuMi is Thinking!,")
+        # self.messenger("---------------------", idx=1)
         self.ph.NoSolution = False
+        self.ph.solved = False
         self.ph.reset_problem()
         self.startLooper()
 
 
     def startLooper(self):
-
+        print('Procedure is Running!')
         if (not self.ph.NoSolution) and self.startFlag:
-            print("There is Solution...")
+            # print("Waiting for YuMi Server ...")
+            # self.messenger("YuMi is Thinking!.")
             if self.actionState:
+                # self.messenger("YuMi is Thinking!..")
                 print("Running...")
                 tic = time()
+
                 self.ph.stateReader()
+
                 toc = time()
+                
                 print("time for perception is: ", round(toc-tic, 3))
                 tic = toc
-
+                # self.messenger("Please see the used positions before to move!")
                 self.ph.run()
-
-            self.ph.checkAction()
-            QTimer.singleShot(3000, self.startLooper)
-        if self.ph.NoSolution:
-            self.messenger("Please Do the Rest, our Robot cannot do more!")
             
+            if (not self.ph.NoSolution):
+                # self.messenger("Please Feel Free to work on the Free Zone!..")
+                self.ph.checkAction()
+
+            QTimer.singleShot(5000, self.startLooper)
+
+
+        if self.ph.NoSolution:
+
+            if self.ph.vh.solved:
+                self.messenger("Thank You")
+                self.messenger("Task Has been solved", idx=1)
+                return
+
+            # self.messenger("Please wait The Robot to Take a photo!,")
+            self.messenger("Please Do the Rest, our Robot cannot do more!,,")
+            self.ph.stateReader()
+
+            QTimer.singleShot(5000, self.startLooper)
+
+
     def stop(self):
         """
         Function: stop, to stop.
@@ -502,9 +539,11 @@ class Ui_MainWindow(object):
         @return: None
         """
         self.startFlag = False
-        legos = self.vh.taskWorld[self.getArUcoID()]
+        legos = self.ph.vh.taskWorld[self.getArUcoID()]
         for point in legos:
-        	self.blinker(point, 'g' )
+        	self.blinker(point, 'g', reset=True)
+        self.messenger("---------------------,")
+        self.messenger("---------------------,", idx=1)
 
     def close(self):
         """
