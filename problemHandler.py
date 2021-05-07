@@ -139,10 +139,10 @@ class problemHandler():
 
         # self.ui.messenger("YuMi is taking a look!...")
         self.vh.taskID = self.ui.getArUcoID()
-        print("PH ID ",self.vh.taskID)
+
         self.vh.captureWorld()
 
-        print(self.vh.worldState)
+        # print(self.vh.worldState)
 
         if len(self.vh.errors) > 0:
             for point in self.vh.errors:
@@ -163,7 +163,8 @@ class problemHandler():
             self.stateWriter(lineIdx, comment=mappedState[lineIdx])
 
         self.vh.errors = []
-        # self.ui.messenger("YuMi has Finished taking a look!...")
+        #self.ui.messenger("You are Free to go!", idx= 1)
+        self.ui.messenger("Vous pouvez placer vos pieces", idx= 1)
 
     def stateWriter(self, lineIndex, comment=False, shift=0):
         """
@@ -251,9 +252,10 @@ class problemHandler():
             self.ui.problemChanged = False
 
         if self.vh.solved:
-            print("Solved !")
+            
             for point in self.vh.taskWorld[self.ui.getArUcoID()]:
             	self.ui.blinker(point, self.vh.taskWorld[self.ui.getArUcoID()][point])
+            print("Solved !")
             return
 
         if problem == None:
@@ -340,7 +342,8 @@ class problemHandler():
             print('No Plan')
             self.NoSolution = True
             self.ui.startFlag = False
-            self.ui.messenger("Please Do the Rest, our Robot cannot do more!.")
+            #self.ui.messenger("Please Do the Rest, our Robot cannot do more!.")
+            self.ui.messenger("Je ne peux plus vous aider. Je vous laisse terminer.")
             # self.reset_problem(full=False)
         else:
             print("No Solution for Swap!\n")
@@ -402,13 +405,14 @@ class problemHandler():
         print("time for planning is: ", round(toc-tic, 3))
         # self.reset_problem(full=False)
 
-        if self.plan is not None:
+        if (self.plan is not None) and (not self.vh.solved):
             self.ah = actionHandler(self.plan)
-            self.interaction()
+            self.interaction(verbose=True)
             self.ah.action()
             self.checkAction()
-        else:
-            self.ui.messenger("Please Do the Rest, our Robot cannot do more!..")
+        elif(not self.vh.solved):
+            #self.ui.messenger("Please Do the Rest, our Robot cannot do more!..")
+            self.ui.messenger("Je ne peux plus vous aider. Je vous laisse terminer.")
 
     def interaction(self, mode='p', verbose=False):
         """
@@ -436,8 +440,9 @@ class problemHandler():
             for neighbour in self.neighbours[1:self.num]:
                 if neighbour in self.vh.worldState:
                     self.ui.blinker(neighbour, self.vh.worldState[neighbour]+'p')
-                    self.ui.messenger("I'm Moving, watch out the red blinking zone!")
 
+            #self.ui.messenger("I'm Moving, watch out the red blinking zone!")
+            self.ui.messenger("Je place une piece. J'ai besoin de la zone qui glinotte.")
             self.neighbours = None
 
         else:
@@ -450,7 +455,10 @@ class problemHandler():
             for neighbour in self.neighbours[1:self.num]:
                 if neighbour in self.vh.worldState:
                     self.ui.blinker(neighbour, self.vh.worldState[neighbour])
-                    self.ui.messenger("I Have done my movement!")
 
+            #self.ui.messenger("I Have done my movement!")
+            #self.ui.messenger("Taking a photo please wait!", idx= 1)
+            self.ui.messenger("J'ai fini!")
+            self.ui.messenger("Je prends une photo pour faire un point sur la situation.", idx= 1)
             self.neighbours = None
 #--------------------------------------------------------------

@@ -38,7 +38,7 @@ class imageProcessor():
         self.cellCenters = None
         self.redMask = None
         self.redMaskBGR = None
-
+        self.hand = False
         self.cellsState = {
         # First column
         15:  ['p_10_04', 'g'], 14:  ['p_11_04', 'g'], 13:  ['p_12_04', 'g'], 12:  ['p_13_04', 'g'],
@@ -93,10 +93,7 @@ class imageProcessor():
         if not color in colors:
             print('Please Note that the color has to be either: red, green, blue, or yellow]\n')
             return np.zeros_like(img)[...,0]
-
-        hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-
-        # Dictionary to map the range of the Hue, Saturation, Value(illumination) of each color.
+                # Dictionary to map the range of the Hue, Saturation, Value(illumination) of each color.
         HSV_ranges = {
         "red":      ( 174,  12) + (140, 255) + (20, 255),
         "green":    (  55,  90) + (150, 255) + (20, 255),
@@ -105,6 +102,15 @@ class imageProcessor():
         }
 
         HSV= HSV_ranges[color]
+
+        try:
+            hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+        except:
+            print("Issue Happened here")
+            img = img.astype(np.uint8)
+            print("shape:",img.shape)
+            hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+            
         # checking the marked pixels in the captured_hsv_frame
         if HSV[0]<HSV[1] :
             mask=cv2.inRange(hsv_img,HSV[0::2],HSV[1::2])
@@ -115,6 +121,7 @@ class imageProcessor():
             mask  = cv2.bitwise_or(mask1, mask2)
             mask  = cv2.medianBlur(mask, 5)                                # <---------#
         return mask
+
 
     def Morhology(self, mask, th=50, k=5, iters=10, verbose=False):
         """
@@ -262,6 +269,12 @@ class imageProcessor():
 
         # Process the sorted rects:
         rectCounter = 0
+
+        # Detect undetected hand
+        if(len(boundRectsSorted)<4):
+            self.hand = True
+            self.workspaceCoords = None
+            return
 
         for i in range(len(boundRectsSorted)):
 
@@ -524,7 +537,7 @@ class imageProcessor():
             for color in ['green', 'yellow', 'blue']:
                 mask = self.HSV_mask(swap[zone], color)
                 pixelsCount = np.count_nonzero(mask)
-                if(pixelsCount>100):
+                if(pixelsCount>200):
                     self.swapState[zone] = color[0]
 
         humanStock = {
@@ -577,7 +590,9 @@ class imageProcessor():
         # detect swap, and human stock
         # hand = self.handDetector() 
         # if(not hand):
+
         self.swapAnalyser(greenPlatform)
+
         if any(elem is None for elem in [self.redMask, self.redMaskBGR]):
             # mask the red color
             redMask = self.HSV_mask(greenPlatform, 'red')
@@ -589,7 +604,9 @@ class imageProcessor():
             # safe the coordinated of the markers
             if self.workspaceCoords is None:
                 _ = self.centerMarkersContour(self.redMaskBGR, redRects, verbose=verbose)
-
+        # stop if there is a hand
+        if self.hand:
+            return
         # crop the workspace
         workspace = self.cropWorkspace(greenPlatform, self.redMaskBGR, verbose=verbose)
 
@@ -599,7 +616,6 @@ class imageProcessor():
 
         # analyse workspace
         self.cellAnalyser(workspace, self.cellList, self.cellCenters, verbose=verbose)
-
 
     def handDetector(self, verbose=False):
         """
@@ -627,21 +643,6 @@ class imageProcessor():
 
         # crop the large rectangle
         greenPlatform = self.cropPlatform(self.greenRects, undistorted)
-
-        # if any(elem is None for elem in [self.redMask, self.redMaskBGR]):
-        #     # mask the red color
-        #     redMask = self.HSV_mask(greenPlatform, 'red')
-        #     # Morpholoical closing
-        #     self.redMask, self.redMaskBGR = self.Morhology(redMask, th=50, verbose=verbose)
-
-        #     # find the red markers
-        #     redRects  = self.findMarkersContour(self.redMask, minArea=800)
-        #     # safe the coordinated of the markers
-        #     if self.workspaceCoords is None:
-        #         _ = self.centerMarkersContour(self.redMaskBGR, redRects, verbose=verbose)
-
-        # # crop the workspace
-        # workspace = self.cropWorkspace(greenPlatform, self.redMaskBGR, verbose=verbose)
         
         #converting from gbr to hsv color space
         img_HSV = cv2.cvtColor(greenPlatform, cv2.COLOR_BGR2HSV)
@@ -725,7 +726,7 @@ class imageProcessor():
 # proc.stateAnalyzer(verbose=True)
 
 # hand = proc.handDetector(verbose=True)
-# print(hand)
+# print(proc.hand, hand)
 # print(proc.cellsState, '\n', proc.swapState, '\n', proc.humanStock)
 
 # {0: ['ws_11', 'b'], 1: ['ws_12', 'y'], 2: ['ws_13', 'g'], 3: ['ws_14', 'y'], 

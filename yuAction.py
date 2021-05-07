@@ -11,8 +11,6 @@ import subprocess
 from RWS4YuMi import RWS4YuMi
 from time import time
 from PyQt5.QtCore import QTimer
-#
-
 #======================
 # class actionHandler |
 #======================
@@ -153,8 +151,8 @@ class actionHandler():
 		for action in self.plan:
 
 			action = action[action.index('(')+1:action.index(')')].split()
-			if(verbose):
-				print(action)
+			# if(verbose):
+			# 	print(action)
 			if action[0]=='hold_gripper':
 				pickPos = legoDict[action[1]]
 			elif action[0]=='hold_gripper_right':

@@ -490,8 +490,17 @@ class Ui_MainWindow(object):
 
 
     def startLooper(self):
+
+        if self.ph.vh.solved:
+            # self.messenger("Thank You")
+            # self.messenger("Task Has been solved", idx=1)
+            self.messenger("je vous remercie beaucoup")
+            self.messenger("La tâche a été résolue", idx=1)
+            
+            return
+
         print('Procedure is Running!')
-        if (not self.ph.NoSolution) and self.startFlag:
+        if (not self.ph.NoSolution) and self.startFlag and (not self.ph.vh.solved):
             # print("Waiting for YuMi Server ...")
             # self.messenger("YuMi is Thinking!.")
             if self.actionState:
@@ -517,13 +526,9 @@ class Ui_MainWindow(object):
 
         if self.ph.NoSolution:
 
-            if self.ph.vh.solved:
-                self.messenger("Thank You")
-                self.messenger("Task Has been solved", idx=1)
-                return
-
             # self.messenger("Please wait The Robot to Take a photo!,")
-            self.messenger("Please Do the Rest, our Robot cannot do more!,,")
+            # self.messenger("Please Do the Rest, our Robot cannot do more!,,")
+            self.messenger("Je ne peux plus vous aider. Je vous laisse terminer.")
             self.ph.stateReader()
 
             QTimer.singleShot(5000, self.startLooper)
@@ -544,6 +549,8 @@ class Ui_MainWindow(object):
         	self.blinker(point, 'g', reset=True)
         self.messenger("---------------------,")
         self.messenger("---------------------,", idx=1)
+        self.ph = problemHandler(path=self.path, filename='problem_main.pddl', ui=self)
+        print("Stopped !")
 
     def close(self):
         """

@@ -174,7 +174,7 @@ class visionHandler():
                 print(point, self.worldState[point], groundTruth[point])
 
             if self.worldState[point] != groundTruth[point] and not point in ['p_07_06', 'p_07_07']:
-                print(point, self.worldState[point], groundTruth[point])
+                # print(point, self.worldState[point], groundTruth[point])
                 self.solved = False
 
     def updateState(self, verbose=False):
@@ -189,13 +189,19 @@ class visionHandler():
         # write the colors to the worldState dictionary
         # self.proc = imageProcessor(path)
         self.proc.stateAnalyzer(verbose=verbose)
-        for key in self.proc.cellsState:
-            self.worldState[self.proc.cellsState[key][0]] = self.proc.cellsState[key][1]
-        for key in self.proc.swapState:
-            self.worldState[key] = self.proc.swapState[key]
-        for key in self.humanStock:
-            self.humanStock[key] = self.proc.humanStock[key]
-
+        if not self.proc.hand:
+            for key in self.proc.cellsState:
+                self.worldState[self.proc.cellsState[key][0]] = self.proc.cellsState[key][1]
+            for key in self.proc.swapState:
+                self.worldState[key] = self.proc.swapState[key]
+            for key in self.humanStock:
+                self.humanStock[key] = self.proc.humanStock[key]
+        else:
+            print("yuVis, Hand Detected!...")
+            sleep(5)
+            # capture an image.
+            self.com.getImage(self.path) 
+            self.updateState()
         # print("YuVis\n", self.worldState, self.proc.cellsState)
 
     def captureWorld(self, verbose=False):
