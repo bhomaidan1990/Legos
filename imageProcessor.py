@@ -103,14 +103,8 @@ class imageProcessor():
 
         HSV= HSV_ranges[color]
 
-        try:
-            hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-        except:
-            print("Issue Happened here")
-            img = img.astype(np.uint8)
-            print("shape:",img.shape)
-            hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-            
+        hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+
         # checking the marked pixels in the captured_hsv_frame
         if HSV[0]<HSV[1] :
             mask=cv2.inRange(hsv_img,HSV[0::2],HSV[1::2])
@@ -273,7 +267,7 @@ class imageProcessor():
         # Detect undetected hand
         if(len(boundRectsSorted)<4):
             self.hand = True
-            self.workspaceCoords = None
+            self.workspaceCoords = [None, None, None, None]
             return
 
         for i in range(len(boundRectsSorted)):
@@ -547,13 +541,17 @@ class imageProcessor():
         'y_2x2': greenPlatform[280:305, 620:725, :]
         }
 
-        for zone in humanStock: 
-            mask1 = self.HSV_mask(humanStock[zone], 'yellow')
-            mask2 = self.HSV_mask(humanStock[zone], 'blue')
-            mask  = cv2.bitwise_or(mask1, mask2) 
-            pixelsCount = np.count_nonzero(mask)
-            if(not pixelsCount>100):
-                self.humanStock[zone] = 0 
+        try:
+            for zone in humanStock: 
+                mask1 = self.HSV_mask(humanStock[zone], 'yellow')
+                mask2 = self.HSV_mask(humanStock[zone], 'blue')
+                mask  = cv2.bitwise_or(mask1, mask2) 
+                pixelsCount = np.count_nonzero(mask)
+                if(not pixelsCount>100):
+                    self.humanStock[zone] = 0 
+        except:
+            print("Cropping Human Stock Failed!")
+            self.humanStock = {'b_2x2': 1, 'b_2x4': 1, 'y_2x2': 1, 'y_2x4': 1 }
 
     def stateAnalyzer(self, verbose=False):
         """
@@ -610,12 +608,15 @@ class imageProcessor():
         # crop the workspace
         workspace = self.cropWorkspace(greenPlatform, self.redMaskBGR, verbose=verbose)
 
-        if any(elem is None for elem in [self.cellList, self.cellCenters]):
-            # grid workspace
-            self.cellList, self.cellCenters = self.gridWorkspace(workspace, verbose=verbose)
+        try:
+            if any(elem is None for elem in [self.cellList, self.cellCenters]):
+                # grid workspace
+                self.cellList, self.cellCenters = self.gridWorkspace(workspace, verbose=verbose)
 
-        # analyse workspace
-        self.cellAnalyser(workspace, self.cellList, self.cellCenters, verbose=verbose)
+            # analyse workspace
+            self.cellAnalyser(workspace, self.cellList, self.cellCenters, verbose=verbose)
+        except:
+            print("Couldn't Update Workspace")
 
     def handDetector(self, verbose=False):
         """

@@ -56,7 +56,7 @@ MODULE MainModule
     g_GripOut;
     MoveL Offs(targetpoint, 0, 0, 45), v100, z10,tool0;
     g_GripIn;
-    MoveL Offs(targetpoint, 0, 0, 15.8), v100, fine,tool0;
+    MoveL Offs(targetpoint, 0, 0, 16), v100, fine,tool0;
     MoveL Offs(targetpoint, 0, 0, 40), v100, z10, tool0;
     MoveJ placeap, v100, z10, tool0;
     g_GripOut;

@@ -228,6 +228,6 @@ class actionHandler():
 # # # # tic = time()
 # ah.action()
 
-# # if(ah.actionEnded()):
-# # 	toc = time()
-# # 	print('Done within: {} seconds.'.format(round(toc-tic, 3)))
+# if(ah.actionEnded()):
+# 	toc = time()
+# 	print('Done within: {} seconds.'.format(round(toc-tic, 3)))

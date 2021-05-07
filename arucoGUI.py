@@ -494,6 +494,7 @@ class Ui_MainWindow(object):
         if self.ph.vh.solved:
             # self.messenger("Thank You")
             # self.messenger("Task Has been solved", idx=1)
+            print("gui, Solved")
             self.messenger("je vous remercie beaucoup")
             self.messenger("La tâche a été résolue", idx=1)
             

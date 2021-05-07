@@ -198,6 +198,7 @@ class visionHandler():
                 self.humanStock[key] = self.proc.humanStock[key]
         else:
             print("yuVis, Hand Detected!...")
+            self.proc.hand = False
             sleep(5)
             # capture an image.
             self.com.getImage(self.path) 
