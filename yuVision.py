@@ -219,11 +219,14 @@ class visionHandler():
             return
         self.com.getImage(self.path)
         self.proc = imageProcessor(self.path)
-        while self.proc.handDetector():
+        hand = self.proc.handDetector()
+        while hand:
             print("yuVis, Hand Detected!")
             sleep(5)
             # capture an image.
             self.com.getImage(self.path)     #  <-- 1
+            self.proc = imageProcessor(self.path)
+            hand = self.proc.handDetector()
 
         self.updateState(verbose=verbose)
         self.compareWorld()
