@@ -1,6 +1,9 @@
 # Legos
+
 > Author: Belal HMEDAN
+> 
 > LIG labs, Marvin Team
+> 
 > France, 2021
 
 ---
@@ -39,7 +42,7 @@ The prerequests for this module are:
 3. Morphological closing.
 4. Detecting and cropping the ROI (green platform, the workspace, swap zone, and the human stock).
 5. Analysing the data in the image.
-6. Hand detection$^1$ using YCrCb, and HSV colorspaces.
+6. Hand detection (1) using YCrCb, and HSV colorspaces.
 
 ```
 1:
