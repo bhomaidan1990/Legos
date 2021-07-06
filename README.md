@@ -8,7 +8,7 @@
 
 ---
 
-![Demo](https://www.youtube.com/watch?v=gTQ9_m4f_nI)
+[![Demo](https://i1.ytimg.com/vi/gTQ9_m4f_nI/hqdefault.jpg)](https://www.youtube.com/watch?v=gTQ9_m4f_nI "Demo of the Project")
 
 ---
 
