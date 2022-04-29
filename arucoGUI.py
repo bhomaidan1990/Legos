@@ -3,7 +3,7 @@
 '''
 | author:
 | Belal HMEDAN, 
-| LIG lab/ Marven Team, 
+| LIG lab/ Marvin Team, 
 | France, 2021.
 | ArUco GUI.
 '''
