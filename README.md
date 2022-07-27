@@ -6,6 +6,10 @@
 > 
 > France, 2021
 
+This Repository is the Source Code of Our paper: [**Adapting Cobot Behavior to Human Task Ordering Variability for Assembly Tasks**](https://journals.flvc.org/FLAIRS/article/view/130645), to cite this work:
+
+> HMEDAN, B., Kilgus, . D., Fiorino, H., Landry, A., & Pellier, D. (2022). Adapting Cobot Behavior to Human Task Ordering Variability for Assembly Tasks. The International FLAIRS Conference Proceedings, 35. https://doi.org/10.32473/flairs.v35i.130645
+
 ---
 
 **PreRequests:**
